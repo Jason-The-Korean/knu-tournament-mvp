@@ -2,7 +2,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { validateTournament, validateTeam, registrationReason, normalizeKey, closeReason } from './public/model.js';
+import { validateTournament, validateTeam, registrationReason, normalizeKey, closeReason, canCancelUnderfilled, approvedTeamCount } from './public/model.js';
 import { buildBracket } from './bracket.js';
 import { applyResult } from './results.js';
 import { validateScheduleRules } from './public/schedule-model.js';
@@ -43,6 +43,7 @@ export function openStore(filename, { now = () => Date.now() } = {}) {
     },
     setScheduleRules(id, rules) {
       return transaction(() => {
+        if (find(id).status === 'CANCELLED') fail('취소된 대회의 운영 규칙은 변경할 수 없습니다.', 409);
         const item = find(id); if (item.scheduling) fail('한 번 설정한 일정 규칙은 변경할 수 없습니다.', 409);
         const error = validateScheduleRules(rules, item.capacity); if (error) fail(error);
         if (item.startsAt && Date.parse(rules.startsAt) !== Date.parse(item.startsAt)) fail('일정 규칙의 시작 시각은 대회 시작 시각과 같아야 합니다.', 400);
@@ -57,7 +58,13 @@ export function openStore(filename, { now = () => Date.now() } = {}) {
     },
     closeRegistration(id) {
       return transaction(() => {
-        const item = find(id); const reason = closeReason(item, now()); if (reason) fail(reason, 409);
+        const item = find(id), instant = now(); const reason = closeReason(item, instant); if (reason) fail(reason, 409);
+        if (canCancelUnderfilled(item, instant)) {
+          item.status = 'CANCELLED';
+          item.cancelReason = `최소 개최 조건 2팀 미달 (승인된 참가팀 ${approvedTeamCount(item)}팀)`;
+          item.cancelledAt = new Date(instant).toISOString(); item.closedAt = item.cancelledAt;
+          saveTournament(item); return item;
+        }
         item.status = 'closed'; item.closedAt = new Date().toISOString(); saveTournament(item);
         return item;
       });

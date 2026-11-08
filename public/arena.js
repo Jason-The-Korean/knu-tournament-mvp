@@ -4,6 +4,7 @@ export const participationScope = item => ['open', 'department'].includes(item.p
 export const typeLabel = item => ({ friendly: '친선', competitive: '경쟁', unknown: '유형 미설정' })[competitionType(item)];
 export const scopeLabel = item => ({ open: '자유 참가', department: '학과 대항', unknown: '참가 범위 미설정' })[participationScope(item)];
 export function tournamentStage(item) {
+  if (item.status === 'CANCELLED') return { key: 'cancelled', label: '취소됨', reason: item.cancelReason || '모집 인원 미달로 취소된 대회' };
   if (item.bracket?.championTeamId) return { key: 'ended', label: '종료', reason: '결승 결과와 우승팀 확정' };
   const matches = item.bracket?.rounds.flatMap(round => round.matches) ?? [];
   if (matches.some(match => match.status !== 'bye' && (['AWAITING_CONFIRMATION', 'DISPUTED', 'CONFIRMED'].includes(match.resultStatus) || match.status === 'completed' || match.submissions?.length > 0))) return { key: 'live', label: '진행 중', reason: '실제 경기 결과 제출 또는 확정 기록 있음' };

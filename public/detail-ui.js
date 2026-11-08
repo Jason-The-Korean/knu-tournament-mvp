@@ -23,8 +23,10 @@ export function detailLayout(item,joinButton) {
  if(item.recruitEndAt) values.splice(2,1,['모집 마감 일시',displayKst(item.recruitEndAt)]);
  if(item.startsAt) values.push(['대회 시작 시각',displayKst(item.startsAt)]);
  if(deadlinePassed(item)) values[3][1]='모집 마감';
+ if(item.status==='CANCELLED') values[3][1]='취소됨';
  for(const [k,v]of values){const pair=el('div');pair.append(el('dt',k),el('dd',v));facts.append(pair);}banner.append(facts);
  const actions=el('div','','event-actions');const rules=el('button','대회 규정','button-outline');rules.type='button';rules.dataset.detailTarget='event-rules';actions.append(joinButton,rules);banner.append(actions);root.append(banner);
+ if(item.status==='CANCELLED') banner.append(el('p',`취소됨 · ${item.cancelReason || '모집 인원 미달'} · 취소 시각 ${displayKst(item.cancelledAt)} · 기존 참가팀 기록은 보존됩니다.`,'notice cancellation-notice'));
  const nav=el('nav','','event-nav');nav.setAttribute('role','tablist');nav.setAttribute('aria-label','대회 상세 메뉴');
  const sections={};
  for(const[id,label]of [['home','대회 홈'],['notices','공지사항'],['bracket','대진/일정'],['participants','참가자'],['videos','영상'],['questions','문의게시판'],['rules','대회규정']]){
@@ -39,5 +41,6 @@ export function detailLayout(item,joinButton) {
  for(const match of scheduled.slice(0,3))sections.home.append(el('p',`${match.displayId} · ${time(match.schedule.startsAt)} ~ ${time(match.schedule.endsAt)}`));
  sections.home.append(el('p','전체 라운드 기간과 일정 제안·동의는 대진/일정에서 확인하세요.','muted'));
  for(const[id,text]of [['notices','공지사항 기능은 준비 중입니다. 등록된 공지 데이터가 없습니다.'],['videos','영상 업로드·재생 기능은 제공하지 않습니다.'],['questions','문의게시판은 준비 중입니다. 게시글 작성·댓글 기능은 제공하지 않습니다.']])sections[id].append(el('p',text,'notice'));
+ if(item.status==='CANCELLED') sections.participants.append(el('p','취소된 대회의 참가팀 기록입니다. 참가팀과 대표자 연결을 보존하며 변경할 수 없습니다.','notice'));
  sections.rules.append(rulesPanel());return{root,...sections};
 }

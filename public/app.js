@@ -1,4 +1,4 @@
-﻿import { today, validateTournament, validateTeam, registrationReason, kstInputToIso, displayKst, kstDate } from './model.js';
+﻿import { today, validateTournament, validateTeam, registrationReason, kstInputToIso, displayKst, kstDate, canCancelUnderfilled, approvedTeamCount } from './model.js';
 import { closeReason, closingPolicy } from './model.js';
 import { resultState, matchFormat, matchFormatLabel } from './model.js';
 import { rulesFields, readRules, tournamentScheduling, matchScheduling } from './schedule-ui.js';
@@ -75,11 +75,11 @@ $('auth-dialog').addEventListener('close', () => {
   $('login-password').value = ''; $('signup-password').value = ''; updateAuthButtons();
   if ($('auth-dialog').returnValue !== 'success') { pendingAction = null; restoreModalFocus(); }
 });
-for (const id of ['auth-dialog', 'login-required-dialog']) $(id).addEventListener('click', event => {
+for (const id of ['auth-dialog', 'login-required-dialog', 'recruit-close-dialog']) $(id).addEventListener('click', event => {
   const dialog = $(id), rect = dialog.getBoundingClientRect();
   if (event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) dialog.close('cancel');
 });
-for (const id of ['auth-dialog', 'login-required-dialog']) $(id).addEventListener('keydown', event => {
+for (const id of ['auth-dialog', 'login-required-dialog', 'recruit-close-dialog']) $(id).addEventListener('keydown', event => {
   if (event.key !== 'Tab') return;
   const dialog = $(id);
   const items = [...dialog.querySelectorAll('button, input, select, textarea, a[href], [tabindex]')].filter(node => !node.disabled && node.tabIndex >= 0 && node.getClientRects().length > 0);
@@ -210,7 +210,7 @@ function showDetail(item) {
   $('team-form').hidden = Boolean(reason) || !currentUser || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
   $('join-button').hidden = Boolean(reason) || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
   layout.home.append(element('p', closingPolicy(item), 'notice'));
-  layout.bracket.append(tournamentScheduling(item));
+  if (item.status !== 'CANCELLED') layout.bracket.append(tournamentScheduling(item));
   showBracket(item);
   layout.bracket.append($('detail-content').querySelector('.bracket-section'));
   enhanceBracket(item, layout.bracket);
@@ -227,6 +227,10 @@ function showBracket(item) {
   section.setAttribute('aria-label', '토너먼트 대진표');
   section.append(element('h3', '싱글 엘리미네이션 대진표'));
   if (['Bo1', 'Bo3'].includes(item.finalFormat)) section.append(element('p', `결승 ${item.finalFormat}`));
+  if (item.status === 'CANCELLED') {
+    section.append(element('p', '취소된 대회입니다. 참가팀 기록은 보존되며 대진표를 생성할 수 없습니다.', 'notice'));
+    $('detail-content').append(section); return;
+  }
   if (!item.bracket) {
     section.append(element('p', '모집을 마감한 뒤 무작위로 한 번 생성합니다. 재추첨과 팀 위치 변경은 불가능합니다.', 'muted'));
     const button = element('button', item.status === 'closed' ? '무작위 대진표 생성 (재추첨 불가)' : '참가 모집 마감');
@@ -324,12 +328,24 @@ $('detail-content').addEventListener('submit', async event => {
     await route();
   } catch (error) { $('message').textContent = error.message; button.disabled = false; }
 });
+function confirmRecruitClose(item) {
+  const dialog = $('recruit-close-dialog'), cancelling = canCancelUnderfilled(item);
+  $('recruit-close-title').textContent = cancelling ? '모집 인원 미달 · 대회 취소 확인' : '모집 종료 확인';
+  $('recruit-close-message').textContent = cancelling
+    ? `현재 승인된 ${approvedTeamCount(item)}팀이 참가했습니다. 최소 개최 조건인 2팀을 충족하지 못했습니다. 모집을 종료하면 대회가 취소됩니다. 참가팀과 대표자 기록은 삭제하지 않습니다.`
+    : `현재 ${item.teams.length}팀이 참가했습니다. 모집을 종료하면 추가 참가 신청을 받지 않습니다. 대진표는 자동 생성되지 않으며 다음 단계에서 별도로 생성합니다.`;
+  $('recruit-close-confirm').textContent = cancelling ? '대회 취소 확정' : '모집 종료 확정';
+  dialog.returnValue = ''; dialog.showModal(); $('recruit-close-cancel').focus();
+  return new Promise(resolve => dialog.addEventListener('close', () => resolve(dialog.returnValue === 'confirm'), { once: true }));
+}
+window.addEventListener('hashchange', () => { if ($('recruit-close-dialog').open) $('recruit-close-dialog').close('cancel'); });
 $('detail-content').addEventListener('click', async event => {
   const button = event.target.closest('button[data-action]'); if (!button) return;
   const id = selectedId(); button.disabled = true;
   try {
-    await api(`/api/tournaments/${id}/${button.dataset.action}`, {});
-    $('message').textContent = button.dataset.action === 'close' ? '참가 모집을 마감했습니다. 등록된 팀은 모두 보존됩니다.' : '대진표를 생성했습니다. 재추첨할 수 없습니다.';
+    if (button.dataset.action === 'close' && (!(await confirmRecruitClose(tournaments.find(item => item.id === id))) || selectedId() !== id)) { button.disabled = false; if (button.isConnected) button.focus({ preventScroll: true }); return; }
+    const result = await api(`/api/tournaments/${id}/${button.dataset.action}`, {});
+    $('message').textContent = result.status === 'CANCELLED' ? '모집 인원 미달로 대회가 취소되었습니다. 참가팀과 대표자 기록은 보존됩니다.' : button.dataset.action === 'close' ? '참가 모집을 마감했습니다. 등록된 팀은 모두 보존됩니다.' : '대진표를 생성했습니다. 재추첨할 수 없습니다.';
     await route();
   } catch (error) { $('message').textContent = error.message; await route(); }
 });

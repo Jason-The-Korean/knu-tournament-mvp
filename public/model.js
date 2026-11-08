@@ -6,6 +6,8 @@ export function kstInputToIso(value) {
   return new Date(value + ':00+09:00').toISOString();
 }
 export const deadlinePassed = (item, now = Date.now()) => item.recruitEndAt != null && Number.isFinite(Date.parse(item.recruitEndAt)) && now >= Date.parse(item.recruitEndAt);
+export const approvedTeamCount = item => item.teams.filter(team => team.status === 'approved').length;
+export const canCancelUnderfilled = (item, now = Date.now()) => item.status === 'open' && !item.bracket && deadlinePassed(item, now) && approvedTeamCount(item) < 2;
 export const displayKst = value => isInstant(value) ? new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) + ' (KST)' : '미설정';
 export function today() {
   const now = new Date();
@@ -66,6 +68,7 @@ export function validateTeam(data) {
   return '';
 }
 export function registrationReason(tournament, now = Date.now()) {
+  if (tournament.status === 'CANCELLED') return '취소된 대회에는 참가 신청할 수 없습니다.';
   if (tournament.bracket) return '대진표가 확정되어 참가 신청이 종료되었습니다.';
   if (deadlinePassed(tournament, now)) return '모집 마감 일시가 지나 참가 신청할 수 없습니다.';
   if (tournament.capacity < 2 || tournament.capacity > 8) return '기존 대회는 보존되었습니다. 참가 신청은 정원 2~8팀 대회에서 지원합니다.';
@@ -74,7 +77,7 @@ export function registrationReason(tournament, now = Date.now()) {
   return '';
 }
 export function closingPolicy(tournament) {
-  if (tournament.recruitEndAt) return `모집 마감 ${displayKst(tournament.recruitEndAt)} · 정원 충족 또는 마감 시각 경과 시 최소 2팀으로 수동 마감 가능.${tournament.kind === 'friendly' && Number.isInteger(tournament.earlyCloseMinTeams) ? ` 사전 공지: ${tournament.earlyCloseMinTeams}팀 이상 친선 조기 마감 가능.` : ''}`;
+  if (tournament.recruitEndAt) return `모집 마감 ${displayKst(tournament.recruitEndAt)} · 마감 후 승인 팀이 0~1팀이면 개최자의 모집 종료 시 취소, 2팀 이상이면 정상 마감합니다. 마감 전 정원 충족·조기 마감 조건은 유지합니다.${tournament.kind === 'friendly' && Number.isInteger(tournament.earlyCloseMinTeams) ? ` 사전 공지: ${tournament.earlyCloseMinTeams}팀 이상 친선 조기 마감 가능.` : ''}`;
   return tournament.kind === 'friendly' && Number.isInteger(tournament.earlyCloseMinTeams)
     ? `사전 공지: ${tournament.earlyCloseMinTeams}팀 이상 참가 시 조기 마감 가능 (마감 시 참가 취소 없이 현재 팀으로 진행)`
     : '모집 규칙: 정원이 찼거나 대회 날짜가 지난 뒤 마감 가능. 조기 마감은 허용되지 않습니다.';
@@ -83,6 +86,7 @@ export function closeReason(tournament, now = Date.now()) {
   if (tournament.bracket) return '이미 대진표가 생성되었습니다.';
   if (tournament.status !== 'open') return '이미 모집이 마감되었습니다.';
   if (tournament.capacity < 2 || tournament.capacity > 8 || tournament.teams.length > 8) return '마감과 대진표 생성은 정원 2~8팀 대회에서 지원합니다.';
+  if (canCancelUnderfilled(tournament, now)) return '';
   if (tournament.teams.length < 2) return '최소 2팀이 참가해야 모집을 마감할 수 있습니다.';
   if (deadlinePassed(tournament, now)) return '';
   if (tournament.teams.length >= tournament.capacity || tournament.date < today()) return '';
