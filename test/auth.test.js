@@ -15,7 +15,7 @@ test('실제 세션·CSRF·역할 인가 및 업무 규칙 통합 API', async t 
   await start();
   const guest = sessionClient(base), owner = sessionClient(base), stranger = sessionClient(base), a = sessionClient(base), b = sessionClient(base);
   let id, match, teamA, teamB;
-  const tournament = { name: '보호 대회', date: '2099-11-14', capacity: 2, description: '', scheduling: { startsAt: '2099-11-14T00:00:00Z', endsAt: '2099-11-15T00:00:00Z', maxConcurrent: 1, rounds: { 2: { startsAt: '2099-11-14T00:00:00Z', endsAt: '2099-11-15T00:00:00Z' } } } };
+  const tournament = { name: '보호 대회', date: '2099-11-14', startsAt: '2099-11-14T00:00:00Z', recruitEndAt: '2099-11-13T00:00:00Z', capacity: 2, description: '', scheduling: { startsAt: '2099-11-14T00:00:00Z', endsAt: '2099-11-15T00:00:00Z', maxConcurrent: 1, rounds: { 2: { startsAt: '2099-11-14T00:00:00Z', endsAt: '2099-11-15T00:00:00Z' } } } };
   const team = suffix => ({ name: suffix, representativeName: '대표', members: Array.from({ length: 5 }, (_, i) => `${suffix}${i}#TEST`), representativeIndex: 0 });
   try {
     await t.test('비로그인 쓰기 401, 회원가입·로그인 실제 세션·쿠키·토큰 회전', async () => {
@@ -75,7 +75,7 @@ test('실제 세션·CSRF·역할 인가 및 업무 규칙 통합 API', async t 
 
 test('기존 데이터 원문·소유자 미연결 보존 및 HTTP 읽기 전용, Secure 쿠키 설정', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'knu-legacy-auth-')), dbPath = join(directory, 'test.sqlite');
-  const store = openStore(dbPath); const item = store.create({ name: '이전 데모', date: '2099-11-14', capacity: 2, description: '' }); store.close();
+  const store = openStore(dbPath); const item = store.create({ name: '이전 데모', date: '2099-11-14', startsAt: '2099-11-14T00:00:00Z', recruitEndAt: '2099-11-13T00:00:00Z', capacity: 2, description: '' }); store.close();
   const db = new DatabaseSync(dbPath); const original = db.prepare('SELECT payload FROM tournaments WHERE id=?').get(item.id).payload; db.close();
   const server = createServer({ dbPath }); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); const base = `http://127.0.0.1:${server.address().port}`;
   try {

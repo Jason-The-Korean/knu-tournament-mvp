@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from '../server.js';
 import { STORAGE_KEY, validateTournament, readTournaments } from '../public/model.js';
 
-const valid = { name: '경북대 LoL 대회', date: '2026-11-14', capacity: 8, description: '' };
+const valid = { name: '경북대 LoL 대회', date: '2026-11-14', startsAt: '2026-11-14T00:00:00Z', recruitEndAt: '2026-11-13T00:00:00Z', capacity: 8, description: '' };
 test('대회 입력 검증: 정상 입력, 빈 이름, 과거 날짜, 잘못된 팀 수', () => {
   assert.equal(validateTournament(valid, '2026-11-07'), '');
   for (const change of [{ name: '' }, { date: '2026-11-06' }, { capacity: 9 }]) {

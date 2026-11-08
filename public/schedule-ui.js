@@ -1,4 +1,4 @@
-import { resultState, matchFormat, matchFormatLabel } from './model.js';
+import { resultState, matchFormat, matchFormatLabel, kstInputToIso } from './model.js';
 import { durationMinutes } from './schedule-model.js';
 const el = (tag, text, className) => { const node = document.createElement(tag); if (text) node.textContent = text; if (className) node.className = className; return node; };
 export const displayTime = value => new Date(value).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false }) + ' (KST)';
@@ -11,9 +11,9 @@ function select(parent, name, text, options) {
   for (const [value, text] of options) { const option = el('option', text); option.value = value; input.append(option); }
   label.append(input); parent.append(label); return input;
 }
-export function rulesFields(capacity) {
+export function rulesFields(capacity, kst = false) {
   const container = el('div', '', 'schedule-rules-fields');
-  container.append(el('p', '일정 입력은 브라우저 현지 시간 기준입니다. 저장은 UTC, 표시된 공식 일정은 한국 시간(KST)입니다. 규칙은 한 번 저장하면 변경할 수 없습니다.'));
+  container.append(el('p', kst ? '이 생성 폼의 일정은 모두 한국 시간(KST)으로 입력합니다. 대회 시작과 일치해야 합니다.' : '일정 입력은 브라우저 현지 시간 기준입니다. 저장은 UTC, 표시된 공식 일정은 한국 시간(KST)입니다. 규칙은 한 번 저장하면 변경할 수 없습니다.'));
   field(container, 'eventStart', '대회 시작'); field(container, 'eventEnd', '대회 종료');
   const max = field(container, 'maxConcurrent', '최대 동시 경기 수', 'number'); max.min = '1'; max.max = '4'; max.value = '1';
   for (let size = 2; size <= 2 ** Math.ceil(Math.log2(Math.min(capacity, 8))); size *= 2) {
@@ -22,8 +22,8 @@ export function rulesFields(capacity) {
   }
   return container;
 }
-export function readRules(form, capacity) {
-  const data = new FormData(form), iso = name => { const value = data.get(name); if (!value) throw new Error('대회 및 라운드 기간을 모두 입력해 주세요.'); return new Date(value).toISOString(); };
+export function readRules(form, capacity, kst = false) {
+  const data = new FormData(form), iso = name => { const value = data.get(name); if (!value) throw new Error('대회 및 라운드 기간을 모두 입력해 주세요.'); return kst ? kstInputToIso(value) : new Date(value).toISOString(); };
   const rules = { startsAt: iso('eventStart'), endsAt: iso('eventEnd'), maxConcurrent: Number(data.get('maxConcurrent')), rounds: {} };
   for (let size = 2; size <= 2 ** Math.ceil(Math.log2(Math.min(capacity, 8))); size *= 2) rules.rounds[size] = { startsAt: iso(`round${size}Start`), endsAt: iso(`round${size}End`) };
   return rules;

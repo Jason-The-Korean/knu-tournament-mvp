@@ -20,8 +20,8 @@ const assets = {
   '/schedule-model.js': ['schedule-model.js', 'text/javascript; charset=utf-8'],
   '/schedule-ui.js': ['schedule-ui.js', 'text/javascript; charset=utf-8'],
 };
-export function createServer({ dbPath = fileURLToPath(new URL('./data/tournament.sqlite', import.meta.url)), secureCookies = process.env.SESSION_COOKIE_SECURE === '1' } = {}) {
-  const store = openStore(dbPath);
+export function createServer({ dbPath = fileURLToPath(new URL('./data/tournament.sqlite', import.meta.url)), secureCookies = process.env.SESSION_COOKIE_SECURE === '1', now = () => Date.now() } = {}) {
+  const store = openStore(dbPath, { now });
   const server = http.createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');

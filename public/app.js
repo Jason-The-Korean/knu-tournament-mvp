@@ -1,4 +1,4 @@
-﻿import { today, validateTournament, validateTeam, registrationReason } from './model.js';
+﻿import { today, validateTournament, validateTeam, registrationReason, kstInputToIso, displayKst, kstDate } from './model.js';
 import { closeReason, closingPolicy } from './model.js';
 import { resultState, matchFormat, matchFormatLabel } from './model.js';
 import { rulesFields, readRules, tournamentScheduling, matchScheduling } from './schedule-ui.js';
@@ -141,6 +141,7 @@ function render() {
     link.append(element('h3', item.name), element('p', `${scopeLabel(item)} · LoL 5인 팀`, 'card-meta'));
     const footer = element('div', '', 'card-footer'); footer.append(element('span', `${item.teams.length} / ${item.capacity}팀`), element('span', `${item.date.slice(5, 7)}월 ${item.date.slice(8, 10)}일`, 'card-date'));
     card.append(status, link, footer);
+    card.append(element('p', item.recruitEndAt ? `모집 마감 ${displayKst(item.recruitEndAt)}` : '모집 마감 일시 미설정 · 기존 정책 적용', 'muted recruitment-deadline'));
     const bookmark = element('button', '', 'bookmark-button'); bookmark.type = 'button'; bookmark.dataset.favorite = item.id; bookmark.disabled = !favoritesReady;
     bookmark.setAttribute('aria-label', `${item.name} 관심 ${favorites.has(item.id) ? '해제' : '등록'}`); bookmark.setAttribute('aria-pressed', String(favorites.has(item.id)));
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.8'); svg.setAttribute('aria-hidden', 'true');
@@ -341,7 +342,7 @@ async function route() {
   $('list-view').hidden = create || Boolean(id) || guide; $('create-view').hidden = !create; $('detail-view').hidden = !id; $('guide-view').hidden = !guide;
   $('home-intro').hidden = create || Boolean(id) || guide; $('workspace-nav').hidden = !create && !id;
   $('list-tab').setAttribute('aria-current', !create ? 'page' : 'false');
-  $('create-tab').setAttribute('aria-current', create ? 'page' : 'false'); $('date').min = today();
+  $('create-tab').setAttribute('aria-current', create ? 'page' : 'false'); $('date').min = kstDate(Date.now());
   $('team-error').textContent = ''; $('team-form').reset();
   if (id) { $('team-form').hidden = true; $('detail-view').append($('join-button'), $('team-form')); $('detail-content').replaceChildren(element('p', '불러오는 중…')); }
   try {
@@ -353,8 +354,10 @@ $('create-form').addEventListener('submit', async event => {
   event.preventDefault();
   const data = { name: $('name').value.trim(), date: $('date').value, capacity: Number($('capacity').value), description: $('description').value.trim(), kind: $('kind').value, earlyCloseMinTeams: $('early-close').value ? Number($('early-close').value) : null, finalFormat: $('final-format').value };
   data.competitionType = data.kind === 'friendly' ? 'friendly' : 'competitive'; data.participationScope = $('participation-scope').value;
-  if ($('enable-scheduling').checked) { try { data.scheduling = readRules($('create-form'), data.capacity); } catch (error) { $('form-error').textContent = error.message; return; } }
-  const error = validateTournament(data); $('form-error').textContent = error; if (error) return;
+  if ($('enable-scheduling').checked) { try { data.scheduling = readRules($('create-form'), data.capacity, true); } catch (error) { $('form-error').textContent = error.message; return; } }
+  try { data.startsAt = kstInputToIso(`${$('date').value}T${$('start-time').value}`); data.recruitEndAt = kstInputToIso($('recruit-end').value); }
+  catch (error) { $('form-error').textContent = error.message; return; }
+  const error = validateTournament(data, kstDate(Date.now())); $('form-error').textContent = error; if (error) return;
   const button = event.submitter; button.disabled = true;
   try {
     await api('/api/tournaments', data); $('create-form').reset();
@@ -363,7 +366,7 @@ $('create-form').addEventListener('submit', async event => {
   finally { button.disabled = false; }
 });
 function createRuleInputs() {
-  const fields = rulesFields(Number($('capacity').value));
+  const fields = rulesFields(Number($('capacity').value), true);
   fields.querySelectorAll('input').forEach(input => { input.disabled = !$('enable-scheduling').checked; });
   $('creation-scheduling').replaceChildren(fields);
 }

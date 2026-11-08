@@ -1,4 +1,4 @@
-import { finalFormatLabel } from './model.js';
+import { finalFormatLabel, displayKst, deadlinePassed } from './model.js';
 import { tournamentStage, typeLabel, scopeLabel } from './arena.js';
 import { rulesPanel } from './rules-ui.js';
 const tabs = new Map();
@@ -20,6 +20,9 @@ export function detailLayout(item,joinButton) {
  const banner=el('header','','event-banner');banner.append(el('p','KNU ARENA · LEAGUE OF LEGENDS','event-kicker'),el('h2',item.name),el('p',`${typeLabel(item)} · ${scopeLabel(item)} · ${tournamentStage(item).label}`,'event-status'));
  const facts=el('dl','','event-facts');
  const values=[['개최자',item.permissions.legacyReadOnly?'기존 데모 · 개최자 미연결':'개최자 계정 연결됨 · 공개 이름 미제공'],['참가 현황',`${item.teams.length} / ${item.capacity}팀`],['모집 기간','별도 기간 미저장 · 현재 모집 상태 확인'],['모집 상태',item.status==='open'?'모집 열림 (정원·참가 조건 적용)':'모집 마감'],['경기 예정일',item.date || '미설정'],['경기 기간',item.scheduling?`${time(item.scheduling.startsAt)} ~ ${time(item.scheduling.endsAt)}`:'상세 기간 미설정'],['경기 방식',`LoL 5인 팀 · 싱글 엘리미네이션 · 일반 Bo1 / 결승 ${finalFormatLabel(item)}`]];
+ if(item.recruitEndAt) values.splice(2,1,['모집 마감 일시',displayKst(item.recruitEndAt)]);
+ if(item.startsAt) values.push(['대회 시작 시각',displayKst(item.startsAt)]);
+ if(deadlinePassed(item)) values[3][1]='모집 마감';
  for(const [k,v]of values){const pair=el('div');pair.append(el('dt',k),el('dd',v));facts.append(pair);}banner.append(facts);
  const actions=el('div','','event-actions');const rules=el('button','대회 규정','button-outline');rules.type='button';rules.dataset.detailTarget='event-rules';actions.append(joinButton,rules);banner.append(actions);root.append(banner);
  const nav=el('nav','','event-nav');nav.setAttribute('role','tablist');nav.setAttribute('aria-label','대회 상세 메뉴');
@@ -29,7 +32,7 @@ export function detailLayout(item,joinButton) {
   const section=el('section','','event-section');section.id='event-'+id;section.dataset.detailSection='';section.setAttribute('role','tabpanel');section.setAttribute('aria-labelledby',b.id);const heading=el('h3',label);heading.tabIndex=-1;section.append(heading);sections[id]=section;
  }root.append(nav,...Object.values(sections));
  sections.home.append(el('h4','대회 소개'),el('p',item.description || '등록된 소개가 없습니다.'),el('h4','참가 조건'),el('p','LoL 5인 팀 · 대표자 계정으로 신청 · 정원 내 유효한 신청 자동 승인. 학교 이메일·Riot 계정 소유권과 학과 소속은 아직 검증하지 않습니다.'),el('p',`${scopeLabel(item)} · ${item.teams.length}/${item.capacity}팀 · ${item.bracket?'대진표 생성 완료 · 재추첨 불가':'대진표 미생성'}`));
- sections.home.append(el('h4','모집 및 운영 일정'),el('p',`경기 예정일: ${item.date || '미설정'} · 모집 시작/종료 일시는 별도 저장되지 않습니다.`),el('p',item.scheduling?`경기 기간: ${time(item.scheduling.startsAt)} ~ ${time(item.scheduling.endsAt)}`:'경기 시작·종료 기간과 라운드 기간은 아직 설정되지 않았습니다.'));
+ sections.home.append(el('h4','모집 및 운영 일정'),el('p',item.recruitEndAt?`모집 마감: ${displayKst(item.recruitEndAt)} · 대회 시작: ${displayKst(item.startsAt)}`:`경기 예정일: ${item.date || '미설정'} · 모집 시작/종료 일시는 별도 저장되지 않습니다.`),el('p',item.scheduling?`경기 기간: ${time(item.scheduling.startsAt)} ~ ${time(item.scheduling.endsAt)}`:'상세 운영 종료·라운드 기간은 아직 설정되지 않았습니다.'));
  const matches=item.bracket?.rounds.flatMap(r=>r.matches)??[];const scheduled=matches.filter(m=>m.schedule).sort((a,b)=>new Date(b.schedule.confirmedAt??b.schedule.startsAt)-new Date(a.schedule.confirmedAt??a.schedule.startsAt));
  sections.home.append(el('h4','현재 확정 경기 일정'));
  if(!scheduled.length)sections.home.append(el('p','아직 확정된 경기 일정이 없습니다.','muted'));

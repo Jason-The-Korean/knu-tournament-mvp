@@ -9,7 +9,7 @@ import { validateScheduleRules } from './public/schedule-model.js';
 import { proposeSchedule, consentSchedule } from './scheduling.js';
 import { authStorage } from './auth.js';
 
-export function openStore(filename) {
+export function openStore(filename, { now = () => Date.now() } = {}) {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });
   const db = new DatabaseSync(filename);
   db.exec(`PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
@@ -38,13 +38,14 @@ export function openStore(filename) {
     auth,
     close: () => db.close(),
     create(data, userId) {
-      const error = validateTournament(data); if (error) fail(error);
-      return transaction(() => { const item = insert({ id: randomUUID(), name: data.name.trim(), date: data.date, capacity: data.capacity, description: data.description.trim(), type: 'LoL · 5인 팀 · 싱글 엘리미네이션', kind: data.kind ?? 'standard', competitionType: data.competitionType ?? (data.kind === 'friendly' ? 'friendly' : null), participationScope: data.participationScope ?? null, earlyCloseMinTeams: data.earlyCloseMinTeams ?? null, finalFormat: data.finalFormat ?? 'Bo1', scheduling: data.scheduling ?? null, status: 'open', createdAt: new Date().toISOString() }); if (userId) auth.linkTournament(item.id, userId); return item; });
+      const error = validateTournament(data, undefined, false, now()); if (error) fail(error);
+      return transaction(() => { const item = insert({ id: randomUUID(), name: data.name.trim(), date: data.date, startsAt: new Date(data.startsAt).toISOString(), recruitEndAt: new Date(data.recruitEndAt).toISOString(), capacity: data.capacity, description: data.description.trim(), type: 'LoL · 5인 팀 · 싱글 엘리미네이션', kind: data.kind ?? 'standard', competitionType: data.competitionType ?? (data.kind === 'friendly' ? 'friendly' : null), participationScope: data.participationScope ?? null, earlyCloseMinTeams: data.earlyCloseMinTeams ?? null, finalFormat: data.finalFormat ?? 'Bo1', scheduling: data.scheduling ?? null, status: 'open', createdAt: new Date().toISOString() }); if (userId) auth.linkTournament(item.id, userId); return item; });
     },
     setScheduleRules(id, rules) {
       return transaction(() => {
         const item = find(id); if (item.scheduling) fail('한 번 설정한 일정 규칙은 변경할 수 없습니다.', 409);
         const error = validateScheduleRules(rules, item.capacity); if (error) fail(error);
+        if (item.startsAt && Date.parse(rules.startsAt) !== Date.parse(item.startsAt)) fail('일정 규칙의 시작 시각은 대회 시작 시각과 같아야 합니다.', 400);
         item.scheduling = rules; saveTournament(item); return item.scheduling;
       });
     },
@@ -56,7 +57,7 @@ export function openStore(filename) {
     },
     closeRegistration(id) {
       return transaction(() => {
-        const item = find(id); const reason = closeReason(item); if (reason) fail(reason, 409);
+        const item = find(id); const reason = closeReason(item, now()); if (reason) fail(reason, 409);
         item.status = 'closed'; item.closedAt = new Date().toISOString(); saveTournament(item);
         return item;
       });
@@ -98,7 +99,7 @@ export function openStore(filename) {
       return transaction(() => {
         const tournament = list().find(item => item.id === id);
         if (!tournament) fail('대회를 찾을 수 없습니다.', 404);
-        const reason = registrationReason(tournament); if (reason) fail(reason, 409);
+        const reason = registrationReason(tournament, now()); if (reason) fail(reason, 409);
         if (userId && auth.hasTeam(id, userId)) fail('한 계정은 같은 대회에서 한 팀만 대표할 수 있습니다.', 409);
         const error = validateTeam(data); if (error) fail(error);
         if (tournament.teams.some(team => normalizeKey(team.name) === normalizeKey(data.name))) fail('이미 등록된 팀 이름입니다.', 409);

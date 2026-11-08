@@ -9,7 +9,7 @@ import { openStore } from '../store.js';
 import { DatabaseSync } from 'node:sqlite';
 import { spawn } from 'node:child_process';
 
-const tournament = (name = '대회') => ({ name, date: '2099-11-14', capacity: 2, description: '데모' });
+const tournament = (name = '대회') => ({ name, date: '2099-11-14', startsAt: '2099-11-14T00:00:00Z', recruitEndAt: '2099-11-13T00:00:00Z', capacity: 2, description: '데모' });
 const team = (key = 'A') => ({ name: `팀 ${key}`, representativeName: '대표자', members: Array.from({ length: 5 }, (_, i) => `선수${key}${i}#KR1`), representativeIndex: 2 });
 async function start(dbPath = ':memory:') {
   const server = createServer({ dbPath });

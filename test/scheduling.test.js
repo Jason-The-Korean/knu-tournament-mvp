@@ -12,7 +12,7 @@ const at = hour => new Date(Date.UTC(2099, 10, 14, hour)).toISOString();
 function rules(maxConcurrent = 2) { return { startsAt: at(0), endsAt: at(24), maxConcurrent, rounds: Object.fromEntries([2, 4, 8].map(size => [size, { startsAt: at(0), endsAt: at(24) }])) }; }
 async function setup(count = 4, options = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'knu-schedule-')), dbPath = join(directory, 'test.sqlite');
-  const store = openStore(dbPath), item = store.create({ name: '일정 검증', date: '2099-11-14', capacity: count, description: '', scheduling: options.rules ?? rules(), finalFormat: options.format ?? 'Bo1' });
+  const store = openStore(dbPath), item = store.create({ name: '일정 검증', date: '2099-11-14', startsAt: '2099-11-14T00:00:00Z', recruitEndAt: '2099-11-13T00:00:00Z', capacity: count, description: '', scheduling: options.rules ?? rules(), finalFormat: options.format ?? 'Bo1' });
   for (let i = 0; i < count; i++) store.register(item.id, { name: `팀${i}`, representativeName: '대표', members: Array.from({ length: 5 }, (_, j) => `일정선수${i}-${j}#KR1`), representativeIndex: 0 });
   store.closeRegistration(item.id); store.generateBracket(item.id); store.close();
   let server, base; const client = testFetch(dbPath);
@@ -139,7 +139,7 @@ test('경쟁 후보는 이전 revision 무효화, 재시작 후 제안·일정·
 test('기존 규칙 미설정 대회 호환, 한 번 초기화 후 변경 금지, 잘못된 규칙 거부', async () => {
   const app = await setup();
   try {
-    const legacy = await app.request('/api/tournaments', { name: '기존 형태', date: '2099-11-14', capacity: 2, description: '' });
+    const legacy = await app.request('/api/tournaments', { name: '기존 형태', date: '2099-11-14', startsAt: '2099-11-14T00:00:00Z', recruitEndAt: '2099-11-13T00:00:00Z', capacity: 2, description: '' });
     const path = `/api/tournaments/${legacy.body.id}/schedule-rules`;
     assert.equal(legacy.body.scheduling, null);
     for (const bad of [{ ...rules(), maxConcurrent: 0 }, { ...rules(), endsAt: at(-1) }, { ...rules(), rounds: {} }]) assert.equal((await app.request(path, bad)).status, 400);

@@ -56,12 +56,15 @@
       <p id="create-auth-notice" class="notice">대회 생성은 로그인이 필요합니다.</p><form id="create-form" hidden>
         <label for="name">대회명 <span>(필수)</span></label><input id="name" name="name" required maxlength="60" placeholder="예: 경북대 가을 LoL 토너먼트">
         <div class="form-row"><div><label for="date">대회 날짜 <span>(필수)</span></label><input id="date" name="date" type="date" required></div><div><label for="capacity">최대 참가 팀 수</label><select id="capacity" name="capacity"><option value="2">2팀</option><option value="3">3팀</option><option value="4">4팀</option><option value="5">5팀</option><option value="6">6팀</option><option value="7">7팀</option><option value="8" selected>8팀</option></select></div></div>
+        <label for="start-time">대회 시작 시간 (KST) <span>(필수)</span></label><input id="start-time" name="startTime" type="time" required>
+        <label for="recruit-end">모집 마감 일시 (KST) <span>(필수)</span></label><input id="recruit-end" name="recruitEndAt" type="datetime-local" required>
+        <p class="muted">한국 시간(KST)으로 입력하세요. 모집 마감은 현재보다 미래이고 대회 시작보다 늦지 않아야 합니다. 일정 합의 규칙은 선택 사항입니다.</p>
         <label for="description">대회 소개 <span>(선택)</span></label><textarea id="description" name="description" maxlength="300" rows="4" placeholder="참가 대상과 대회 안내를 적어 주세요."></textarea>
         <label for="kind">대회 유형</label><select id="kind"><option value="standard">경쟁 대회</option><option value="friendly">친선 대회</option></select><label for="participation-scope">참가 범위</label><select id="participation-scope"><option value="open">자유 참가</option><option value="department">학과 대항</option></select><p class="muted">학과 대항 표시는 개최자가 정한 참가 범위입니다. 학교·학과 소속의 자동 인증은 제공하지 않습니다.</p>
         <label for="final-format">결승 경기 방식</label><select id="final-format"><option value="Bo1">Bo1 · 단판</option><option value="Bo3">Bo3 · 2선승</option></select>
         <details><summary>일정 합의 규칙 (선택 · 나중에 한 번 설정 가능)</summary><label><input id="enable-scheduling" type="checkbox">대회·라운드 기간과 동시 경기 수 설정</label><div id="creation-scheduling"></div></details>
         <label for="early-close">친선 대회 조기 마감 최소 팀 수 <span>(선택 · 생성 후 변경 불가)</span></label><input id="early-close" type="number" min="2" max="8" step="1" placeholder="미입력 시 조기 마감 불가">
-        <p class="muted">친선 대회에서만 설정할 수 있습니다. 설정한 수 이상의 팀이 모이면 조기 마감할 수 있다는 조건을 대회 상세에 사전 공지합니다. 일반 대회는 정원이 찼거나 대회 날짜가 지난 후에 마감할 수 있습니다.</p>
+        <p class="muted">친선 대회에서만 설정할 수 있습니다. 설정한 수 이상의 팀이 모이면 조기 마감할 수 있다는 조건을 대회 상세에 사전 공지합니다. 일반 대회는 정원이 찼거나 모집 마감 일시가 지난 후에 마감할 수 있습니다.</p>
         <p id="form-error" role="alert"></p><div class="actions"><button type="submit">대회 생성하기</button><a href="#list">취소</a></div>
       </form>
     </section>

@@ -4,7 +4,7 @@ import { competitionType, participationScope, tournamentStage, filterTournaments
 import { openStore } from '../store.js';
 import { FAVORITES_KEY, loadFavorites, saveFavorites } from '../public/favorites.js';
 
-const event = extra => ({ id: 'sample', name: 'KNU LoL 대회', date: '2099-11-14', capacity: 4, status: 'open', teams: [], permissions: { legacyReadOnly: false }, ...extra });
+const event = extra => ({ id: 'sample', name: 'KNU LoL 대회', date: '2099-11-14', startsAt: '2099-11-14T00:00:00Z', recruitEndAt: '2099-11-13T00:00:00Z', capacity: 4, status: 'open', teams: [], permissions: { legacyReadOnly: false }, ...extra });
 test('기존 standard와 누락 범위는 추정하지 않음, 명시된 유형/범위만 분류', () => {
   assert.equal(competitionType(event({ kind: 'standard' })), 'unknown');
   assert.equal(competitionType(event({ kind: 'friendly' })), 'friendly');
@@ -40,7 +40,7 @@ test('검색·상태·유형·범위·관심은 AND 결합, 이름만 검색', (
 test('새 대회 유형/참가 범위 저장·검증, 기존 행 자동 갱신 없음', () => {
   const store = openStore(':memory:');
   try {
-    const base = { name: '분류', date: '2099-11-14', capacity: 2, description: '' };
+    const base = { name: '분류', date: '2099-11-14', startsAt: '2099-11-14T00:00:00Z', recruitEndAt: '2099-11-13T00:00:00Z', capacity: 2, description: '' };
     const old = store.create(base), before = structuredClone(store.list()[0]);
     const item = store.create({ ...base, kind: 'standard', competitionType: 'competitive', participationScope: 'department' });
     assert.equal(item.competitionType, 'competitive'); assert.equal(item.participationScope, 'department');

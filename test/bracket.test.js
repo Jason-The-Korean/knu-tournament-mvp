@@ -9,7 +9,7 @@ import { createServer } from '../server.js';
 import { openStore } from '../store.js';
 import { buildBracket } from '../bracket.js';
 
-const input = capacity => ({ name: '대진표 시연', date: '2099-11-14', capacity, description: '' });
+const input = capacity => ({ name: '대진표 시연', date: '2099-11-14', startsAt: '2099-11-14T00:00:00Z', recruitEndAt: '2099-11-13T00:00:00Z', capacity, description: '' });
 const team = index => ({ name: `팀 ${index}`, representativeName: '대표', members: Array.from({ length: 5 }, (_, member) => `선수${index}-${member}#KR1`), representativeIndex: 0 });
 async function start(dbPath = ':memory:') {
   const server = createServer({ dbPath });

@@ -11,7 +11,7 @@ import { openStore } from '../store.js';
 
 function fixture(count = 2, format = 'Bo1', dbPath = ':memory:') {
   const store = openStore(dbPath);
-  const item = store.create({ name: '결과 검증', date: '2099-11-14', capacity: count, description: '', finalFormat: format });
+  const item = store.create({ name: '결과 검증', date: '2099-11-14', startsAt: '2099-11-14T00:00:00Z', recruitEndAt: '2099-11-13T00:00:00Z', capacity: count, description: '', finalFormat: format });
   for (let i = 0; i < count; i++) store.register(item.id, { name: `팀${i}`, representativeName: '대표', members: Array.from({ length: 5 }, (_, j) => `선수${i}-${j}#KR1`), representativeIndex: 0 });
   store.closeRegistration(item.id); store.generateBracket(item.id); store.close();
   return item.id;
