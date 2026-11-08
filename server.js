@@ -6,6 +6,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { SIGNUP_BONUS } from './auth.js';
 
 const assets = {
+  '/points-ui.js': ['points-ui.js', 'text/javascript; charset=utf-8'],
   '/bracket-ui.js': ['bracket-ui.js', 'text/javascript; charset=utf-8'],
   '/detail-ui.js': ['detail-ui.js', 'text/javascript; charset=utf-8'],
   '/rules-ui.js': ['rules-ui.js', 'text/javascript; charset=utf-8'],
@@ -52,6 +53,22 @@ export function createServer({ dbPath = fileURLToPath(new URL('./data/tournament
         if (req.method === 'GET' && path === '/api/auth/session') {
           if (!session) { store.auth.throttle(req.socket.remoteAddress, 'session'); session = store.auth.newSession(); session.user = null; setCookie(session.token); }
           return json(200, { user: session.user, csrfToken: session.csrf });
+        }
+        if (req.method === 'GET' && ['/api/me/points', '/api/me/point-transactions'].includes(path)) {
+          if (!session?.user) return json(401, { error: '내 포인트를 확인하려면 로그인이 필요합니다.' });
+          const params = new URL(req.url, 'http://localhost').searchParams;
+          const history = path === '/api/me/point-transactions';
+          for (const key of params.keys()) if (!history || !['limit', 'offset'].includes(key) || params.getAll(key).length !== 1) return json(400, { error: '지원하지 않는 조회 조건입니다.' });
+          if (!history) return json(200, { balance: store.points.balance(session.user.id) });
+          const integer = (key, fallback, min, max) => {
+            const raw = params.get(key); if (raw === null) return fallback;
+            if (!/^(0|[1-9][0-9]*)$/.test(raw) || !Number.isSafeInteger(Number(raw)) || Number(raw) < min || Number(raw) > max) throw Object.assign(new Error('거래내역 조회 범위가 올바르지 않습니다.'), { status: 400 });
+            return Number(raw);
+          };
+          const limit = integer('limit', 20, 1, 50), offset = integer('offset', 0, 0, 1000000);
+          const rows = store.points.history(session.user.id, { limit: limit + 1, offset });
+          const tournaments = new Set(store.list().map(item => item.id));
+          return json(200, { transactions: rows.slice(0, limit).map(row => ({ ...row, tournamentExists: Boolean(row.tournament_id && tournaments.has(row.tournament_id)) })), hasMore: rows.length > limit, nextOffset: offset + Math.min(rows.length, limit) });
         }
         if (req.method === 'GET' && path === '/api/tournaments') return json(200, store.list().map(item => {
           const owner = store.auth.owner(item.id); const userId = session?.user?.id;

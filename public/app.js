@@ -7,6 +7,7 @@ import { FAVORITES_KEY, loadFavorites, saveFavorites } from './favorites.js';
 import { detailLayout, restoreDetailTab, activateDetailTab } from './detail-ui.js';
 import { enhanceBracket, teamButton } from './bracket-ui.js';
 import { rulesPanel } from './rules-ui.js';
+import { resetPoints, showPoints } from './points-ui.js';
 const $ = id => document.getElementById(id);
 let tournaments = [];
 let currentUser = null, csrfToken = '';
@@ -29,6 +30,7 @@ async function api(path = '/api/tournaments', data) {
   return result;
 }
 function authDisplay() {
+  if (!currentUser) resetPoints(location.hash === '#points');
   $('auth-status').textContent = currentUser ? `${currentUser.displayName} (${currentUser.username}) 로그인 중` : '비로그인 · 목록과 공개 대진표를 볼 수 있습니다.';
   $('auth-forms').hidden = Boolean(currentUser); $('logout').hidden = !currentUser;
   $('login-open').hidden = Boolean(currentUser); $('auth-status').classList.toggle('sr-only', !currentUser);
@@ -62,6 +64,8 @@ function requestLogin(action, trigger = document.activeElement) {
 }
 function restoreModalFocus() { if (modalTrigger?.isConnected) modalTrigger.focus(); }
 $('login-open').addEventListener('click', () => { pendingAction = null; modalTrigger = $('login-open'); openAuth(); });
+$('points-open').addEventListener('click', () => $('account-panel').hidePopover());
+$('points-login').addEventListener('click', () => { pendingAction = { type: 'points' }; modalTrigger = $('points-login'); openAuth(); });
 $('auth-close').addEventListener('click', () => $('auth-dialog').close('cancel'));
 $('show-signup').addEventListener('click', () => authMode(true));
 $('show-login').addEventListener('click', () => authMode(false));
@@ -99,7 +103,8 @@ document.addEventListener('click', event => {
   }
 });
 async function resumeAction(action) {
-  if (action?.type === 'create') history.pushState(null, '', '#create');
+  if (action?.type === 'points') history.pushState(null, '', '#points');
+  else if (action?.type === 'create') history.pushState(null, '', '#create');
   else if (action?.type === 'join') history.pushState(null, '', `#detail/${action.id}`);
   await route();
   if (action?.type === 'create') $('name').focus();
@@ -353,14 +358,16 @@ $('detail-content').addEventListener('click', async event => {
 });
 async function route() {
   const version = ++routeVersion;
+  resetPoints(); const points = location.hash === '#points'; $('points-view').hidden = !points;
   const create = location.hash === '#create'; const id = selectedId(); const guide = location.hash === '#guide';
   if (location.hash === '#friendly' || location.hash === '#competitive') filters.type = location.hash.slice(1);
   else if (location.hash === '#list' || !location.hash) filters.type = 'all';
   if (create && !currentUser) { history.replaceState(null, '', '#list'); requestLogin({ type: 'create' }, $('login-open')); return route(); }
-  $('list-view').hidden = create || Boolean(id) || guide; $('create-view').hidden = !create; $('detail-view').hidden = !id; $('guide-view').hidden = !guide;
-  $('home-intro').hidden = create || Boolean(id) || guide; $('workspace-nav').hidden = !create && !id;
+  $('list-view').hidden = create || Boolean(id) || guide || points; $('create-view').hidden = !create; $('detail-view').hidden = !id; $('guide-view').hidden = !guide;
+  $('home-intro').hidden = create || Boolean(id) || guide || points; $('workspace-nav').hidden = !create && !id;
   $('list-tab').setAttribute('aria-current', !create ? 'page' : 'false');
   $('create-tab').setAttribute('aria-current', create ? 'page' : 'false'); $('date').min = kstDate(Date.now());
+  if (points) { await showPoints(currentUser, api); return; }
   $('team-error').textContent = ''; $('team-form').reset();
   if (id) { $('team-form').hidden = true; $('detail-view').append($('join-button'), $('team-form')); $('detail-content').replaceChildren(element('p', '불러오는 중…')); }
   try {
