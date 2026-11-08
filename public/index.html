@@ -1,0 +1,93 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KNU ARENA | 대학생 LoL 대회</title>
+  <script src="/theme.js"></script><link rel="stylesheet" href="/styles.css"><script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+  <header class="site-header">
+    <a class="brand" href="#list" aria-label="KNU ARENA 홈"><img class="brand-logo brand-logo-light" src="/assets/knu-arena-logo.png" width="437" height="109" alt="KNU ARENA"><img class="brand-logo brand-logo-dark" src="/assets/knu-arena-logo-dark.png" width="437" height="109" alt="KNU ARENA"></a>
+    <div class="header-actions">
+      <button id="search-open" class="icon-button" type="button" aria-label="대회 검색"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>
+      <button class="icon-button" type="button" popovertarget="notifications-panel" aria-label="알림 제공 안내"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></button>
+      <span class="sr-only"><span id="auth-status" role="status">로그인 상태 확인 중…</span></span>
+      <button id="login-open" type="button" class="button-outline small-button">로그인</button>
+      <button id="account-open" class="icon-button" type="button" popovertarget="account-panel" aria-label="내 계정" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></button>
+      <!-- Lucide settings icon: https://github.com/lucide-icons/lucide/blob/main/icons/settings.svg
+      ISC License. Copyright (c) 2026 Lucide Icons and Contributors
+      Permission to use, copy, modify, and/or distribute this software for any
+      purpose with or without fee is hereby granted, provided that the above
+      copyright notice and this permission notice appear in all copies.
+      THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+      WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+      MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+      ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+      WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+      ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+      OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. -->
+      <button id="settings-open" class="icon-button" type="button" popovertarget="settings-panel" aria-label="화면 설정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+  </header>
+  <nav class="primary-nav" aria-label="주 메뉴"><a href="#list" data-menu="home">홈</a><a href="#friendly" data-menu="friendly">친선 대회</a><a href="#competitive" data-menu="competitive">경쟁 대회</a><a href="#guide" data-menu="guide">안내·규정</a></nav>
+  <aside id="settings-panel" popover class="header-popover" aria-labelledby="settings-title"><h2 id="settings-title">화면 설정</h2><fieldset><legend>테마 선택</legend><label><input type="radio" name="arena-theme" value="light"> 라이트 모드</label><label><input type="radio" name="arena-theme" value="dark"> 다크 모드</label></fieldset><p>선택은 이 브라우저에 저장됩니다. 최초 방문은 운영체제 설정을 따릅니다.</p></aside>
+  <aside id="notifications-panel" popover class="header-popover" aria-labelledby="notifications-title"><h2 id="notifications-title">알림 안내</h2><p>알림은 아직 제공하지 않습니다.</p><p>일정과 결과는 대회 상세에서 확인해 주세요.</p></aside>
+  <aside id="account-panel" popover class="header-popover" aria-labelledby="account-title"><h2 id="account-title">내 계정</h2><p id="account-label"></p><p>학교 이메일·Riot 소유권 인증은 미제공입니다.</p><button id="logout" class="button-outline" hidden type="button">로그아웃</button></aside>
+  <main>
+    <section id="home-intro" class="hero" aria-labelledby="hero-title"><p class="hero-kicker">경북대학교 학생을 위한 LoL 대회 플랫폼</p><h1 id="hero-title">우리 학교 e스포츠 대회, <em>더 쉽게.</em></h1><p>함께 플레이할 팀을 찾고, 직접 대회를 개최해 보세요.</p><div class="hero-actions"><a class="button button-primary" href="#list" data-browse><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>대회 둘러보기</a><a class="button button-outline" href="#create"><span aria-hidden="true">＋</span> 대회 개최하기</a></div></section>
+    <nav id="workspace-nav" class="workspace-nav" hidden aria-label="화면 선택"><a href="#list" id="list-tab">대회 목록</a><a href="#create" id="create-tab">대회 개최</a></nav>
+    <p id="message" role="status" aria-live="polite"></p>
+    <section id="list-view" aria-labelledby="list-title"><div class="section-heading"><h2 id="list-title">대회 찾아보기</h2><div class="list-tools"><span id="count" role="status" aria-live="polite"></span><button id="refresh-data" class="icon-button" type="button" aria-label="최신 상태 새로고침" title="최신 상태 새로고침"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2 6M20 4v7h-7"/></svg></button></div></div>
+      <div id="status-filters" class="status-filters" role="group" aria-label="대회 상태"><button type="button" data-status="all" aria-pressed="true">전체</button><button type="button" data-status="accepting" aria-pressed="false">접수 중</button><button type="button" data-status="upcoming" aria-pressed="false">진행 예정</button><button type="button" data-status="live" aria-pressed="false">진행 중</button><button type="button" data-status="ended" aria-pressed="false">종료</button></div>
+      <div class="explore-toolbar"><div class="filter-groups"><div id="type-filters" class="chip-group" role="group" aria-label="대회 유형"><span>유형</span><button type="button" data-type="all" aria-pressed="true">전체</button><button type="button" data-type="friendly" aria-pressed="false">친선</button><button type="button" data-type="competitive" aria-pressed="false">경쟁</button></div><div id="scope-filters" class="chip-group" role="group" aria-label="참가 범위"><span>참가 범위</span><button type="button" data-scope="all" aria-pressed="true">전체</button><button type="button" data-scope="open" aria-pressed="false">자유 참가</button><button type="button" data-scope="department" aria-pressed="false">학과 대항</button></div></div>
+      <label class="explore-search" for="tournament-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span class="sr-only">대회 이름 검색</span><input id="tournament-search" type="search" placeholder="대회 이름 검색" maxlength="100" autocomplete="off"></label></div>
+      <div class="results-tools"><p id="filter-description">검색과 필터는 함께 적용됩니다.</p><button id="favorites-only" type="button" class="favorites-filter" aria-pressed="false" aria-describedby="favorites-help">관심 대회만</button><button id="reset-filters" type="button" class="text-button">필터 초기화</button></div><p id="favorites-help" class="local-note">관심 대회는 이 브라우저에 저장됩니다. 계정·기기 간 동기화되지 않습니다.</p><p id="storage-notice" class="storage-notice" role="status" hidden></p><div id="tournaments" class="grid"></div>
+    </section>
+    <section id="guide-view" hidden aria-labelledby="guide-title">
+      <p class="guide-kicker">KNU ARENA GUIDE</p><h2 id="guide-title">안내·규정</h2><p class="muted">이용 순서와 현재 MVP에 적용되는 운영 규칙을 확인하세요.</p>
+      <div class="guide-tabs" role="tablist" aria-label="안내 구분"><button id="guide-use-tab" type="button" role="tab" aria-selected="true" aria-controls="guide-use">서비스 이용 순서</button><button id="guide-rules-tab" type="button" role="tab" aria-selected="false" aria-controls="guide-rules" tabindex="-1">대회 운영 규칙</button></div>
+      <section id="guide-use" role="tabpanel" aria-labelledby="guide-use-tab">
+        <ol class="guide-steps"><li><h3>대회를 찾아보세요</h3><p>로그인 없이 목록·상세·대진표·공개 결과를 볼 수 있습니다. 상태·유형·참가 범위와 이름 검색을 함께 사용하세요.</p></li><li><h3>계정으로 개최하거나 참가하세요</h3><p>개최자 계정은 대회를 만들고, 팀 대표자 계정은 Riot ID 5개와 대표자를 선택해 신청합니다. 한 계정은 같은 대회에서 한 팀만 대표할 수 있습니다.</p></li><li><h3>모집 마감과 대진 확정</h3><p>개최자가 조건을 확인해 모집을 마감하고 무작위 대진표를 한 번 생성합니다. 부전승은 자동으로 배정됩니다.</p></li><li><h3>일정은 양 팀이 함께 정하세요</h3><p>일정을 제안하고 해당 경기의 두 대표자가 각각 같은 제안에 동의하세요. 서버의 기간·충돌 검증을 통과해야 공식 일정이 됩니다.</p></li><li><h3>결과를 각각 제출하세요</h3><p>승리 팀과 점수를 두 대표자가 독립적으로 제출합니다. 일치하면 다음 라운드로 진출하고 결승 결과가 일치하면 우승팀이 표시됩니다.</p></li></ol>
+      </section>
+      <section id="guide-rules" role="tabpanel" aria-labelledby="guide-rules-tab" hidden></section>
+    </section>
+    <section id="create-view" hidden aria-labelledby="create-title"><h2 id="create-title">대회 개최하기</h2><p class="muted">LoL · 5인 팀 · 싱글 엘리미네이션으로 진행할 대회입니다.</p>
+      <p id="create-auth-notice" class="notice">대회 생성은 로그인이 필요합니다.</p><form id="create-form" hidden>
+        <label for="name">대회명 <span>(필수)</span></label><input id="name" name="name" required maxlength="60" placeholder="예: 경북대 가을 LoL 토너먼트">
+        <div class="form-row"><div><label for="date">대회 날짜 <span>(필수)</span></label><input id="date" name="date" type="date" required></div><div><label for="capacity">최대 참가 팀 수</label><select id="capacity" name="capacity"><option value="2">2팀</option><option value="3">3팀</option><option value="4">4팀</option><option value="5">5팀</option><option value="6">6팀</option><option value="7">7팀</option><option value="8" selected>8팀</option></select></div></div>
+        <label for="description">대회 소개 <span>(선택)</span></label><textarea id="description" name="description" maxlength="300" rows="4" placeholder="참가 대상과 대회 안내를 적어 주세요."></textarea>
+        <label for="kind">대회 유형</label><select id="kind"><option value="standard">경쟁 대회</option><option value="friendly">친선 대회</option></select><label for="participation-scope">참가 범위</label><select id="participation-scope"><option value="open">자유 참가</option><option value="department">학과 대항</option></select><p class="muted">학과 대항 표시는 개최자가 정한 참가 범위입니다. 학교·학과 소속의 자동 인증은 제공하지 않습니다.</p>
+        <label for="final-format">결승 경기 방식</label><select id="final-format"><option value="Bo1">Bo1 · 단판</option><option value="Bo3">Bo3 · 2선승</option></select>
+        <details><summary>일정 합의 규칙 (선택 · 나중에 한 번 설정 가능)</summary><label><input id="enable-scheduling" type="checkbox">대회·라운드 기간과 동시 경기 수 설정</label><div id="creation-scheduling"></div></details>
+        <label for="early-close">친선 대회 조기 마감 최소 팀 수 <span>(선택 · 생성 후 변경 불가)</span></label><input id="early-close" type="number" min="2" max="8" step="1" placeholder="미입력 시 조기 마감 불가">
+        <p class="muted">친선 대회에서만 설정할 수 있습니다. 설정한 수 이상의 팀이 모이면 조기 마감할 수 있다는 조건을 대회 상세에 사전 공지합니다. 일반 대회는 정원이 찼거나 대회 날짜가 지난 후에 마감할 수 있습니다.</p>
+        <p id="form-error" role="alert"></p><div class="actions"><button type="submit">대회 생성하기</button><a href="#list">취소</a></div>
+      </form>
+    </section>
+    <section id="detail-view" hidden aria-label="대회 상세"><div class="detail-toolbar"><a href="#list">← 대회 목록</a><button id="detail-refresh" class="button-outline small-button" type="button">최신 상태 새로고침</button></div><div id="detail-content"></div>
+      <button id="join-button" class="button-primary" type="button" hidden>참가 신청하기</button>
+      <form id="team-form" hidden><h3>5인 팀 참가 신청</h3><p class="notice">로그인한 계정이 이 팀의 대표자로 연결됩니다. 한 계정은 같은 대회에서 한 팀만 대표할 수 있습니다. 학교 이메일·Riot 소유권 인증은 미제공입니다.</p>
+        <label for="team-name">팀 이름</label><input id="team-name" required maxlength="40">
+        <label for="representative-name">팀 대표자 이름</label><input id="representative-name" required maxlength="40">
+        <div id="member-inputs"></div>
+        <label for="representative">대표자인 팀원</label><select id="representative" required><option value="" disabled selected>선택해 주세요</option><option value="0">팀원 1</option><option value="1">팀원 2</option><option value="2">팀원 3</option><option value="3">팀원 4</option><option value="4">팀원 5</option></select>
+        <button type="submit">팀 참가 신청</button>
+      </form><p id="team-error" role="alert"></p>
+    </section>
+  </main><footer><span>KNU ARENA</span><span>학생 프로젝트 · 학교 공식 서비스 아님 · LoL만 지원 · 학교 이메일·Riot 소유권 인증 미제공</span></footer>
+  </div>
+  <dialog id="login-required-dialog" class="access-dialog" aria-labelledby="required-title" aria-describedby="required-message required-next">
+    <div class="access-heading"><h2 id="required-title">로그인이 필요합니다</h2><svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></svg></div>
+    <p id="required-message">대회를 개최하려면 로그인이 필요합니다.</p><p id="required-next" class="muted">로그인 후 대회 생성 화면으로 계속 진행할 수 있습니다.</p>
+    <div class="dialog-actions"><button id="required-login" class="button-primary" type="button">로그인하기</button><button id="required-cancel" class="button-outline" type="button">계속 둘러보기</button></div>
+  </dialog>
+  <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-title">
+    <button id="auth-close" class="dialog-close icon-button" type="button" aria-label="로그인 창 닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    <h2 id="auth-title">로그인</h2>
+    <div id="auth-forms"><form id="login-form"><label for="login-username">아이디</label><input id="login-username" placeholder="아이디 입력" autocomplete="username" required maxlength="32"><label for="login-password">비밀번호</label><input id="login-password" placeholder="비밀번호 입력" type="password" autocomplete="current-password" required maxlength="128"><button type="submit" class="button-primary" disabled>로그인</button><p class="auth-switch"><button id="show-signup" class="text-button" type="button">회원가입</button></p><p class="unavailable-note">아이디·비밀번호 찾기는 아직 지원하지 않습니다.</p></form>
+    <form id="signup-form" hidden><label for="signup-username">아이디</label><input id="signup-username" placeholder="영문·숫자·밑줄 3~32자" autocomplete="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_]{3,32}"><label for="signup-name">표시 이름</label><input id="signup-name" placeholder="대회에서 사용할 이름" autocomplete="nickname" required maxlength="40"><label for="signup-password">비밀번호</label><input id="signup-password" placeholder="비밀번호 12~128자" type="password" autocomplete="new-password" required minlength="12" maxlength="128"><button type="submit" class="button-primary" disabled>회원가입</button><p class="auth-switch">이미 계정이 있나요? <button id="show-login" class="text-button" type="button">로그인</button></p><p class="unavailable-note">학교 이메일 인증과는 별개의 계정입니다.</p></form></div><p id="auth-error" role="alert"></p>
+  </dialog>
+</body>
+</html>
+

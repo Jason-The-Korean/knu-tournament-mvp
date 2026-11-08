@@ -1,0 +1,50 @@
+node_modules/
+.env
+.env.*
+!.env.example
+debug.log
+data/
+
+# Local databases, their journals, snapshots, and private manifests
+*.sqlite
+*.sqlite-*
+*.sqlite.manifest.json
+*.db
+*.db-*
+*.db.manifest.json
+/backups/
+/dumps/
+/knu-arena-baselines/
+
+# Runtime logs and temporary/generated files
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+/logs/
+/tmp/
+/temp/
+/coverage/
+
+# Credentials and saved browser authentication
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+/.auth/
+/.aws/
+/.ssh/
+/playwright/.auth/
+/browser-profiles/
+
+# Browser test artifacts may contain cookies, credentials, or private data
+/test-results/
+/playwright-report/
+/browser-test-tools/results/
+/browser-test-tools/node_modules/
+*.har
+trace.zip
+*.trace.zip
