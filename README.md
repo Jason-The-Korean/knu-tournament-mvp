@@ -78,6 +78,21 @@ npm.cmd start
 
 변경 검증은 운영 DB의 일관된 복제본에 스키마를 적용하여 tournaments/teams/brackets 원문을 비교했습니다. 기존 7개 대회, 22팀, 5대진표 및 그 안의 결과·일정이 동일했고 소유권 자동 지정은 0건입니다. 테스트 전후 운영 DB 파일 해시도 동일했습니다. 원본 운영 DB에 새 스키마가 적용되는 시점은 최신 서버를 재시작할 때입니다. data/는 Git 제외 대상이지만 로컬 파일 백업과 접근 통제는 별도로 필요합니다.
 
+## STEP 3.1: 포인트 저장 계층 (내부 전용)
+
+`points.js`는 기존 사용자·대회 테이블을 바꾸지 않고 `point_accounts`와 `point_transactions`를 추가합니다. `openStore()`에서 신규 설치와 기존 DB 모두에 같은 반복 가능한 마이그레이션을 적용합니다. DDL은 `BEGIN IMMEDIATE` 안에서 실행하며 계정·거래 데이터를 자동 생성하지 않습니다. 실제 운영 DB 적용 전에는 일관된 SQLite 백업 및 격리 DB 검증이 필요합니다.
+
+- `point_accounts`: `user_id`(사용자 FK/PK), `balance`(0 이상 안전 정수), `updated_at`(UTC ISO).
+- `point_transactions`: `id`, `user_id`(포인트 계정 FK), `delta`, `balance_after`, `type`, `reason`, 선택적 `tournament_id`/`team_id`/`match_id`, `policy_version`, `created_at`(UTC ISO), UNIQUE `idempotency_key`. 대회·팀은 FK로 연결하고 경기 ID는 해당 대진표 JSON에서 검증합니다.
+- 거래 유형은 `CREDIT`, `DEBIT`, `SIGNUP_BONUS`, `TOURNAMENT_WIN`, `PARTICIPATION_REWARD`만 허용합니다. DEBIT만 음수이고 나머지는 양수입니다. 미래 보상 유형의 저장 형식만 정의했으며 지급 조건·보상 금액·자동 지급은 구현하지 않았습니다.
+- `store.points.balance(userId)`와 `history(userId, {limit, offset})`는 읽기 전용입니다. 기존 회원에게 계정이 없으면 0P/빈 내역을 반환하며 조회나 로그인으로 보너스를 지급하지 않습니다.
+- 신뢰할 수 있는 서버 내부 코드만 `ensureAccount(userId)` 및 `change({userId, delta, type, reason, policyVersion, idempotencyKey, tournamentId?, teamId?, matchId?})`를 호출할 수 있습니다. 사용자용 지급 API·관리자 조정 API·화면은 없습니다.
+- `change()`는 공통 `transaction.js`의 동기 `BEGIN IMMEDIATE` 경계를 사용합니다. 기존 업무 트랜잭션에 결합하려면 같은 DB 연결의 공통 트랜잭션 안에서 `changeInTransaction()`을 호출합니다. 이 함수의 오류는 바깥으로 전파해 전체 작업을 롤백해야 합니다. 중첩 BEGIN과 비동기 콜백은 지원하지 않습니다.
+- 잔액과 거래내역을 함께 저장하고 실패 시 함께 롤백합니다. JS 안전 정수 범위를 SQL CHECK에도 적용하여 SQLite 64비트 정수 범위 안으로 제한합니다. 동일 키의 수령자·금액·유형 및 사유·정책·연관 ID까지 같으면 기존 거래를 반환하며 다르면 409입니다. UNIQUE 제약과 쓰기 잠금으로 병렬 재요청을 방어합니다.
+- 거래내역은 append-only이며 UPDATE/DELETE 방지 트리거가 있습니다. 계정 잔액은 누적 delta 합계와 일치해야 하며 이 조건을 테스트합니다. 조회 내역은 최신 삽입 순서이며 기본 50건, 최대 100건입니다.
+
+회원가입/우승/참가 보상, 참가비·환불·구매·기프티콘 및 소급 지급은 이번 단계에 포함하지 않습니다. 기존 `users`에 포인트 열이나 기본 보너스를 추가하지 않습니다. `npm test`는 격리 SQLite에서 원장·동시성·롤백 및 기존 전체 기능을 검증합니다.
+
 ## 유지되는 운영 규칙
 
 ### STEP 1: 신규 대회의 모집 마감 일시

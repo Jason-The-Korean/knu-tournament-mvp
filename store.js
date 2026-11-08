@@ -8,6 +8,8 @@ import { applyResult } from './results.js';
 import { validateScheduleRules } from './public/schedule-model.js';
 import { proposeSchedule, consentSchedule } from './scheduling.js';
 import { authStorage } from './auth.js';
+import { immediateTransaction } from './transaction.js';
+import { migratePoints, pointStorage } from './points.js';
 
 export function openStore(filename, { now = () => Date.now() } = {}) {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });
@@ -17,6 +19,8 @@ export function openStore(filename, { now = () => Date.now() } = {}) {
     CREATE TABLE IF NOT EXISTS teams (id TEXT PRIMARY KEY, tournament_id TEXT NOT NULL REFERENCES tournaments(id), payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS brackets (tournament_id TEXT PRIMARY KEY REFERENCES tournaments(id), payload TEXT NOT NULL);`);
   const auth = authStorage(db);
+  migratePoints(db);
+  const points = pointStorage(db, { now });
   function list() {
     return db.prepare('SELECT * FROM tournaments ORDER BY rowid').all().map(row => ({
       ...JSON.parse(row.payload), teams: db.prepare('SELECT payload FROM teams WHERE tournament_id=? ORDER BY rowid').all(row.id).map(team => JSON.parse(team.payload)),
@@ -24,9 +28,7 @@ export function openStore(filename, { now = () => Date.now() } = {}) {
     }));
   }
   function transaction(action) {
-    db.exec('BEGIN IMMEDIATE');
-    try { const result = action(); db.exec('COMMIT'); return result; }
-    catch (error) { db.exec('ROLLBACK'); throw error; }
+    return immediateTransaction(db, action);
   }
   function fail(message, status = 400) { throw Object.assign(new Error(message), { status }); }
   function insert(item) { db.prepare('INSERT INTO tournaments VALUES (?, ?)').run(item.id, JSON.stringify(item)); return { ...item, teams: [] }; }
@@ -36,6 +38,7 @@ export function openStore(filename, { now = () => Date.now() } = {}) {
   return {
     list,
     auth,
+    points,
     close: () => db.close(),
     create(data, userId) {
       const error = validateTournament(data, undefined, false, now()); if (error) fail(error);
