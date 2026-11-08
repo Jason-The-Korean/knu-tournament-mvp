@@ -25,7 +25,7 @@ export function detailLayout(item,joinButton) {
  if(item.startsAt) values.push(['대회 시작 시각',displayKst(item.startsAt)]);
  if(deadlinePassed(item)) values[3][1]='모집 마감';
  if(item.status==='CANCELLED') values[3][1]='취소됨';
- for(const [k,v]of values){const pair=el('div');pair.append(el('dt',k),el('dd',v));facts.append(pair);}banner.append(facts);
+ for(const [k,v]of values){const pair=el('div'),value=el('dd',v);if(k==='참가 현황')value.dataset.recruitCount='';if(k==='모집 상태')value.dataset.recruitState='';pair.append(el('dt',k),value);facts.append(pair);}banner.append(facts);
  const actions=el('div','','event-actions');const rules=el('button','대회 규정','button-outline');rules.type='button';rules.dataset.detailTarget='event-rules';actions.append(joinButton,rules);banner.append(actions);root.append(banner);
  if(item.status==='CANCELLED') banner.append(el('p',`취소됨 · ${item.cancelReason || '모집 인원 미달'} · 취소 시각 ${displayKst(item.cancelledAt)} · 기존 참가팀 기록은 보존됩니다.`,'notice cancellation-notice'));
  const nav=el('nav','','event-nav');nav.setAttribute('role','tablist');nav.setAttribute('aria-label','대회 상세 메뉴');

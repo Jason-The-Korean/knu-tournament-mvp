@@ -8,6 +8,7 @@ import { detailLayout, restoreDetailTab, activateDetailTab } from './detail-ui.j
 import { enhanceBracket, teamButton } from './bracket-ui.js';
 import { rulesPanel } from './rules-ui.js';
 import { resetPoints, showPoints } from './points-ui.js';
+import { recruitmentRefresh } from './recruitment-refresh.js';
 const $ = id => document.getElementById(id);
 let tournaments = [];
 let currentUser = null, csrfToken = '';
@@ -27,8 +28,8 @@ function readSavedFavorites() {
 }
 readSavedFavorites();
 $('guide-rules').replaceChildren(rulesPanel());
-async function api(path = '/api/tournaments', data) {
-  const response = await fetch(path, data === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(data) });
+async function api(path = '/api/tournaments', data, { signal } = {}) {
+  const response = await fetch(path, data === undefined ? { signal } : { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }, body: JSON.stringify(data) });
   const result = await response.json();
   if (!response.ok) { if (response.status === 401) { currentUser = null; authDisplay(); } throw new Error(result.error || '요청에 실패했습니다.'); }
   return result;
@@ -202,7 +203,38 @@ function themeControls() { document.querySelectorAll('[name=arena-theme]').forEa
 document.querySelectorAll('[name=arena-theme]').forEach(input => input.addEventListener('change', () => { if (!window.arenaTheme.set(input.value)) $('message').textContent = '테마는 적용했지만 브라우저 저장소에 저장하지 못했습니다. 현재 화면에서만 유지됩니다.'; }));
 window.addEventListener('arena-theme-change', themeControls); themeControls();
 function selectedId() { return location.hash.startsWith('#detail/') ? location.hash.slice(8) : null; }
+const liveRecruitment = recruitmentRefresh({
+  fetchState: async (id, signal) => (await api('/api/tournaments', undefined, { signal })).find(item => item.id === id),
+  apply: item => {
+    if (!item || item.id !== selectedId()) return;
+    const index = tournaments.findIndex(t => t.id === item.id); if (index < 0) return;
+    const previous = tournaments[index]; tournaments[index] = item;
+    const root = $('detail-content');
+    const count = root.querySelector('[data-recruit-count]'); if (count) count.textContent = `${item.teams.length} / ${item.capacity}팀`;
+    const state = root.querySelector('[data-recruit-state]'); if (state) state.textContent = item.status === 'CANCELLED' ? '취소됨' : item.status !== 'open' || registrationReason(item) ? '모집 마감' : '모집 열림 (정원·참가 조건 적용)';
+    const status = root.querySelector('.event-status'); if (status) status.textContent = `${typeLabel(item)} · ${scopeLabel(item)} · ${tournamentStage(item).label}`;
+    root.querySelector('[data-registration-reason]').textContent = registrationReason(item) || '모집 중 · 선착순 자동 승인';
+    root.querySelector('[data-closing-policy]').textContent = closingPolicy(item);
+    const close = root.querySelector('[data-action=close]');
+    if (close) { const reason = closeReason(item); close.disabled = Boolean(reason); close.hidden = !item.permissions.manage; root.querySelector('[data-close-reason]').textContent = reason; }
+    if (JSON.stringify(previous.teams) !== JSON.stringify(item.teams)) renderParticipants(root.querySelector('[data-live-teams]'), item);
+    $('join-button').hidden = Boolean(registrationReason(item)) || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
+    // Preserve values and DOM identity, including hidden or currently edited forms.
+    $('team-form').hidden = Boolean(registrationReason(item)) || !currentUser || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
+    const summary = root.querySelector('[data-recruit-summary]'); if (summary) summary.textContent = `${scopeLabel(item)} · ${item.teams.length}/${item.capacity}팀 · ${item.bracket ? '대진표 생성 완료 · 재추첨 불가' : '대진표 미생성'}`;
+    $('recruitment-refresh-status').textContent = item.status === 'open' && !item.bracket ? '참가 현황 자동 갱신 중 · 12초 간격' : '모집 상태가 변경되었습니다. 전체 내용을 보려면 최신 상태 새로고침을 눌러 주세요.';
+  },
+  onError: () => { if (selectedId() && $('recruitment-refresh-status')) $('recruitment-refresh-status').textContent = '참가 현황을 갱신하지 못했습니다. 기존 화면을 유지하며 자동으로 다시 시도합니다. 최신 상태 새로고침도 사용할 수 있습니다.'; },
+});
+document.addEventListener('visibilitychange', () => liveRecruitment.visibilityChanged());
+window.addEventListener('focus', () => { if (!document.hidden) void liveRecruitment.refresh(); });
+function renderParticipants(container, item) {
+  container.replaceChildren();
+  if (!item.teams.length) container.append(element('p', '아직 참가팀이 없습니다.'));
+  for (const team of item.teams) { const card = element('article', '', 'card'); card.append(teamButton(item, team), element('p', '참가 승인 완료 · 팀을 선택하면 공개 가능한 상세 정보를 표시합니다.')); container.append(card); }
+}
 function showDetail(item) {
+  liveRecruitment.stop();
   $('detail-view').append($('join-button'));
   $('detail-view').append($('team-form'));
   $('detail-content').replaceChildren();
@@ -211,22 +243,20 @@ function showDetail(item) {
   const layout = detailLayout(item, $('join-button'));
   $('detail-content').append(layout.root);
   if (item.permissions.legacyReadOnly) $('detail-content').append(element('p', '기존 데모 · 소유자와 대표자를 확인할 수 없어 읽기 전용으로 보존합니다. 새 대회를 생성해 사용해 주세요.', 'notice'));
-  layout.home.append(element('p', reason || '모집 중 · 선착순 자동 승인', 'notice'));
-  if (!item.teams.length) layout.participants.append(element('p', '아직 참가팀이 없습니다.'));
-  for (const team of item.teams) {
-    const card = element('article', '', 'card');
-    card.append(teamButton(item, team), element('p', '참가 승인 완료 · 팀을 선택하면 공개 가능한 상세 정보를 표시합니다.'));
-    layout.participants.append(card);
-  }
+  const reasonNotice = element('p', reason || '모집 중 · 선착순 자동 승인', 'notice'); reasonNotice.dataset.registrationReason = ''; layout.home.append(reasonNotice);
+  const teamList = element('div'); teamList.dataset.liveTeams = ''; renderParticipants(teamList, item); layout.participants.append(teamList);
   $('team-form').hidden = Boolean(reason) || !currentUser || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
   $('join-button').hidden = Boolean(reason) || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
-  layout.home.append(element('p', closingPolicy(item), 'notice'));
+  const policy = element('p', closingPolicy(item), 'notice'); policy.dataset.closingPolicy = ''; layout.home.append(policy);
   if (item.status !== 'CANCELLED') layout.bracket.append(tournamentScheduling(item));
   showBracket(item);
   layout.bracket.append($('detail-content').querySelector('.bracket-section'));
   enhanceBracket(item, layout.bracket);
   layout.home.append($('team-form'));
   restoreDetailTab(item);
+  const refreshStatus = element('p', '', 'muted'); refreshStatus.id = 'recruitment-refresh-status'; refreshStatus.setAttribute('role', 'status'); layout.root.querySelector('.event-banner').append(refreshStatus);
+  const summary = [...layout.home.querySelectorAll('p')].find(p => p.textContent.includes(`${item.teams.length}/${item.capacity}팀`)); if (summary) summary.dataset.recruitSummary = '';
+  if (item.status === 'open' && !item.bracket) { refreshStatus.textContent = '참가 현황 자동 갱신 중 · 12초 간격'; liveRecruitment.start(item.id); }
 }
 $('join-button').addEventListener('click', () => {
   activateDetailTab('event-home');
@@ -250,7 +280,7 @@ function showBracket(item) {
       ? (item.teams.length < 2 || item.teams.length > 8 || item.capacity > 8 ? '정원 2~8팀 대회에 최소 2팀이 참가해야 합니다.' : '')
       : closeReason(item);
     button.disabled = Boolean(reason); if (item.permissions.manage) section.append(button);
-    if (reason) section.append(element('p', reason, 'muted'));
+    const hint = element('p', reason, 'muted'); hint.dataset.closeReason = ''; section.append(hint);
   } else {
     section.append(element('p', `대진 확정 · ${item.bracket.teamCount}팀 · 재추첨 불가 · BYE는 실제 경기 승리로 집계되지 않습니다.`, 'notice'));
     const grid = element('div', '', 'bracket-grid');
@@ -361,6 +391,7 @@ $('detail-content').addEventListener('click', async event => {
   } catch (error) { $('message').textContent = error.message; await route(); }
 });
 async function route() {
+  liveRecruitment.stop();
   if (successNotice && successNotice.scope !== location.hash) {
     if ($('message').textContent === successNotice.text) $('message').textContent = '';
     successNotice = null;

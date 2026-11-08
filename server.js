@@ -6,6 +6,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { SIGNUP_BONUS } from './auth.js';
 
 const assets = {
+  '/recruitment-refresh.js': ['recruitment-refresh.js', 'text/javascript; charset=utf-8'],
   '/points-ui.js': ['points-ui.js', 'text/javascript; charset=utf-8'],
   '/bracket-ui.js': ['bracket-ui.js', 'text/javascript; charset=utf-8'],
   '/detail-ui.js': ['detail-ui.js', 'text/javascript; charset=utf-8'],
