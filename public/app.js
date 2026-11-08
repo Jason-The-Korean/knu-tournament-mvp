@@ -13,6 +13,10 @@ let tournaments = [];
 let currentUser = null, csrfToken = '';
 let pendingAction = null, modalTrigger = null, authBusy = false;
 let routeVersion = 0;
+let successNotice = null;
+function announceSuccess(text, scope = location.hash) {
+  successNotice = { text, scope }; $('message').textContent = text;
+}
 const filters = { status: 'all', type: 'all', scope: 'all', query: '', favorites: false };
 const favorites = new Set();
 let favoritesReady = true;
@@ -121,7 +125,7 @@ for (const [id, register] of [['login-form', false], ['signup-form', true]]) $(i
     if (register) { const result = await api('/api/auth/register', { username, password, displayName: $('signup-name').value }); signupBonus = result.signupBonus; }
     const state = await api('/api/auth/login', { username, password }); currentUser = state.user; csrfToken = state.csrfToken; $(id).reset();
     const action = pendingAction; pendingAction = null; $('auth-dialog').close('success'); authDisplay(); await resumeAction(action);
-    if (signupBonus) $('message').textContent = `회원가입이 완료되어 데모 보너스 ${signupBonus.amount}P가 지급되었습니다. 현금·기프티콘 교환은 지원하지 않습니다.`;
+    if (signupBonus) announceSuccess(`회원가입이 완료되어 데모 보너스 ${signupBonus.amount}P가 지급되었습니다. 현금·기프티콘 교환은 지원하지 않습니다.`);
   } catch (error) { $('auth-error').textContent = error.message; }
   finally { $(register ? 'signup-password' : 'login-password').value = ''; authBusy = false; updateAuthButtons(); }
 });
@@ -318,7 +322,7 @@ $('detail-content').addEventListener('submit', async event => {
       const proposer = selected === 'organizer' ? { role: 'organizer', name: currentUser.displayName } : { role: 'team', teamId: selected };
       await api(`/api/tournaments/${id}/matches/${form.dataset.matchId}/schedule-proposals`, { proposer, startsAt: new Date(values.get('startsAt')).toISOString() });
     } else await api(`/api/tournaments/${id}/matches/${form.dataset.matchId}/schedule-proposals/${form.dataset.proposalId}/${button.value}`, { teamId: new FormData(form).get('teamId') });
-    $('message').textContent = '일정 요청을 저장했습니다. 양 팀 동의 후 규칙 검증에 성공해야 공식 확정됩니다.';
+    announceSuccess('일정 요청을 저장했습니다. 양 팀 동의 후 규칙 검증에 성공해야 공식 확정됩니다.');
     await route();
   } catch (error) { $('message').textContent = error.message; await route(); }
 });
@@ -331,7 +335,7 @@ $('detail-content').addEventListener('submit', async event => {
   const button = form.querySelector('button'); button.disabled = true;
   try {
     await api(`/api/tournaments/${id}/matches/${match.id}/results`, { teamId: values.get('teamId'), winnerTeamId: winnerId, score });
-    $('message').textContent = '결과를 저장했습니다. 양 팀이 일치하면 자동 확정됩니다.';
+    announceSuccess('결과를 저장했습니다. 양 팀이 일치하면 자동 확정됩니다.');
     await route();
   } catch (error) { $('message').textContent = error.message; button.disabled = false; }
 });
@@ -352,11 +356,15 @@ $('detail-content').addEventListener('click', async event => {
   try {
     if (button.dataset.action === 'close' && (!(await confirmRecruitClose(tournaments.find(item => item.id === id))) || selectedId() !== id)) { button.disabled = false; if (button.isConnected) button.focus({ preventScroll: true }); return; }
     const result = await api(`/api/tournaments/${id}/${button.dataset.action}`, {});
-    $('message').textContent = result.status === 'CANCELLED' ? '모집 인원 미달로 대회가 취소되었습니다. 참가팀과 대표자 기록은 보존됩니다.' : button.dataset.action === 'close' ? '참가 모집을 마감했습니다. 등록된 팀은 모두 보존됩니다.' : '대진표를 생성했습니다. 재추첨할 수 없습니다.';
+    announceSuccess(result.status === 'CANCELLED' ? '모집 인원 미달로 대회가 취소되었습니다. 참가팀과 대표자 기록은 보존됩니다.' : button.dataset.action === 'close' ? '참가 모집을 마감했습니다. 등록된 팀은 모두 보존됩니다.' : '대진표를 생성했습니다. 재추첨할 수 없습니다.');
     await route();
   } catch (error) { $('message').textContent = error.message; await route(); }
 });
 async function route() {
+  if (successNotice && successNotice.scope !== location.hash) {
+    if ($('message').textContent === successNotice.text) $('message').textContent = '';
+    successNotice = null;
+  }
   const version = ++routeVersion;
   resetPoints(); const points = location.hash === '#points'; $('points-view').hidden = !points;
   const create = location.hash === '#create'; const id = selectedId(); const guide = location.hash === '#guide';
@@ -386,7 +394,7 @@ $('create-form').addEventListener('submit', async event => {
   const button = event.submitter; button.disabled = true;
   try {
     await api('/api/tournaments', data); $('create-form').reset();
-    $('message').textContent = `“${data.name}” 대회를 생성했습니다.`; location.hash = '#list';
+    announceSuccess(`“${data.name}” 대회를 생성했습니다.`, '#list'); location.hash = '#list';
   } catch (error) { $('form-error').textContent = error.message; }
   finally { button.disabled = false; }
 });
@@ -411,7 +419,7 @@ $('team-form').addEventListener('submit', async event => {
   const button = event.submitter; button.disabled = true;
   try {
     await api(`/api/tournaments/${id}/teams`, data);
-    $('message').textContent = '팀 참가가 자동 승인되었으며 로그인 계정이 대표자로 연결되었습니다.'; await route();
+    announceSuccess('팀 참가가 자동 승인되었으며 로그인 계정이 대표자로 연결되었습니다.'); await route();
   } catch (error) {
     const message = error.message;
     try { tournaments = await api(); if (selectedId() === id) { render(); showDetail(tournaments.find(item => item.id === id)); } } catch { /* 입력은 유지합니다. */ }
