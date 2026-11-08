@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { openStore } from './store.js';
 import { timingSafeEqual } from 'node:crypto';
+import { SIGNUP_BONUS } from './auth.js';
 
 const assets = {
   '/bracket-ui.js': ['bracket-ui.js', 'text/javascript; charset=utf-8'],
@@ -69,7 +70,7 @@ export function createServer({ dbPath = fileURLToPath(new URL('./data/tournament
         let data; try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { return json(400, { error: '올바른 JSON이 아닙니다.' }); }
         if (credentials) {
           store.auth.throttle(req.socket.remoteAddress, data?.username);
-          if (path === '/api/auth/register') return json(201, { user: await store.auth.register(data) });
+          if (path === '/api/auth/register') return json(201, { user: await store.auth.register(data), signupBonus: SIGNUP_BONUS });
           const user = await store.auth.login(data); const rotated = store.auth.newSession(user.id, session.token); setCookie(rotated.token);
           return json(200, { user, csrfToken: rotated.csrf });
         }

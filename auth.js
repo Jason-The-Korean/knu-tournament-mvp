@@ -1,5 +1,8 @@
 import { randomBytes, randomUUID, createHash, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
+import { immediateTransaction } from './transaction.js';
+import { pointStorage } from './points.js';
+export const SIGNUP_BONUS = Object.freeze({ amount: 100, type: 'SIGNUP_BONUS', policyVersion: 'demo-v0.1' });
 const derive = promisify(scrypt);
 const options = { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
 const digest = value => createHash('sha256').update(value).digest('hex');
@@ -11,6 +14,7 @@ export function authStorage(db) {
     CREATE TABLE IF NOT EXISTS tournament_owners(tournament_id TEXT PRIMARY KEY REFERENCES tournaments(id), user_id TEXT NOT NULL REFERENCES users(id));
     CREATE TABLE IF NOT EXISTS team_owners(team_id TEXT PRIMARY KEY REFERENCES teams(id), tournament_id TEXT NOT NULL REFERENCES tournaments(id), user_id TEXT NOT NULL REFERENCES users(id), UNIQUE(tournament_id,user_id));`);
   let activeHashes = 0;
+  const points = pointStorage(db);
   async function hash(password, salt) {
     if (activeHashes >= 2) fail('인증 요청이 많습니다. 잠시 후 다시 시도해 주세요.', 429);
     activeHashes++;
@@ -39,8 +43,11 @@ export function authStorage(db) {
       if (db.prepare('SELECT 1 FROM users WHERE username=?').get(username)) fail('이미 사용 중인 아이디입니다.', 409);
       const salt = randomBytes(16).toString('hex'), passwordHash = (await hash(data.password, salt)).toString('hex');
       const id = randomUUID();
-      try { db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?)').run(id, username, data.displayName.trim(), salt, passwordHash, Date.now()); }
-      catch (error) { if (error.errcode === 2067 || String(error.message).includes('UNIQUE constraint')) fail('이미 사용 중인 아이디입니다.', 409); throw error; }
+      immediateTransaction(db, () => {
+        try { db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?)').run(id, username, data.displayName.trim(), salt, passwordHash, Date.now()); }
+        catch (error) { if (String(error.message).includes('UNIQUE constraint failed: users.username')) fail('이미 사용 중인 아이디입니다.', 409); throw error; }
+        points.changeInTransaction({ userId: id, delta: SIGNUP_BONUS.amount, type: SIGNUP_BONUS.type, reason: '신규 회원가입 데모 보너스', policyVersion: SIGNUP_BONUS.policyVersion, idempotencyKey: `signup:${id}` });
+      });
       return { id, username, displayName: data.displayName.trim() };
     },
     async login(data) {

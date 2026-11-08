@@ -112,9 +112,11 @@ for (const [id, register] of [['login-form', false], ['signup-form', true]]) $(i
   const username = $(register ? 'signup-username' : 'login-username').value, password = $(register ? 'signup-password' : 'login-password').value;
   try {
     await refreshSession();
-    if (register) await api('/api/auth/register', { username, password, displayName: $('signup-name').value });
+    let signupBonus;
+    if (register) { const result = await api('/api/auth/register', { username, password, displayName: $('signup-name').value }); signupBonus = result.signupBonus; }
     const state = await api('/api/auth/login', { username, password }); currentUser = state.user; csrfToken = state.csrfToken; $(id).reset();
     const action = pendingAction; pendingAction = null; $('auth-dialog').close('success'); authDisplay(); await resumeAction(action);
+    if (signupBonus) $('message').textContent = `회원가입이 완료되어 데모 보너스 ${signupBonus.amount}P가 지급되었습니다. 현금·기프티콘 교환은 지원하지 않습니다.`;
   } catch (error) { $('auth-error').textContent = error.message; }
   finally { $(register ? 'signup-password' : 'login-password').value = ''; authBusy = false; updateAuthButtons(); }
 });

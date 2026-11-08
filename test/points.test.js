@@ -100,7 +100,7 @@ test('Parallel workers/independent SQLite connections: exactly-once and ledger s
   } finally { f.close(); }
 });
 
-test('Signup, login and confirmed championship never create point rewards in STEP 3.1', async () => {
+test('Only signup creates its bonus; login and confirmed championship create no additional rewards', async () => {
   const f = await fixture();
   try {
     const credentials = { username: 'isolated_signup', password: 'Isolated-test-password-123', displayName: 'Test' };
@@ -110,7 +110,9 @@ test('Signup, login and confirmed championship never create point rewards in STE
     f.store.closeRegistration(item.id); const bracket = f.store.generateBracket(item.id), match = bracket.rounds[0].matches[0];
     for (const team of teams) f.store.submitResult(item.id, match.id, { teamId: team.id, winnerTeamId: match.slots[0].teamId, score: [1, 0] });
     assert.equal(f.store.list().find(x => x.id === item.id).bracket.championTeamId, match.slots[0].teamId);
-    for (const table of ['point_accounts', 'point_transactions']) assert.equal(f.db.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0);
+    for (const table of ['point_accounts', 'point_transactions']) assert.equal(f.db.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 1);
+    assert.equal(f.store.points.balance(loggedIn.id), 100);
+    assert.equal(f.store.points.balance('u'), 0); assert.equal(f.store.points.balance('v'), 0);
   } finally { f.close(); }
 });
 
