@@ -10,6 +10,7 @@ import { proposeSchedule, consentSchedule } from './scheduling.js';
 import { authStorage } from './auth.js';
 import { immediateTransaction } from './transaction.js';
 import { migratePoints, pointStorage } from './points.js';
+import { migrateChampionRewards, championRewards } from './champion-reward.js';
 
 export function openStore(filename, { now = () => Date.now() } = {}) {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true });
@@ -21,6 +22,8 @@ export function openStore(filename, { now = () => Date.now() } = {}) {
   const auth = authStorage(db);
   migratePoints(db);
   const points = pointStorage(db, { now });
+  migrateChampionRewards(db);
+  const rewards = championRewards(db, points);
   function list() {
     return db.prepare('SELECT * FROM tournaments ORDER BY rowid').all().map(row => ({
       ...JSON.parse(row.payload), teams: db.prepare('SELECT payload FROM teams WHERE tournament_id=? ORDER BY rowid').all(row.id).map(team => JSON.parse(team.payload)),
@@ -39,10 +42,11 @@ export function openStore(filename, { now = () => Date.now() } = {}) {
     list,
     auth,
     points,
+    rewardPolicy: rewards.policy,
     close: () => db.close(),
     create(data, userId) {
       const error = validateTournament(data, undefined, false, now()); if (error) fail(error);
-      return transaction(() => { const item = insert({ id: randomUUID(), name: data.name.trim(), date: data.date, startsAt: new Date(data.startsAt).toISOString(), recruitEndAt: new Date(data.recruitEndAt).toISOString(), capacity: data.capacity, description: data.description.trim(), type: 'LoL · 5인 팀 · 싱글 엘리미네이션', kind: data.kind ?? 'standard', competitionType: data.competitionType ?? (data.kind === 'friendly' ? 'friendly' : null), participationScope: data.participationScope ?? null, earlyCloseMinTeams: data.earlyCloseMinTeams ?? null, finalFormat: data.finalFormat ?? 'Bo1', scheduling: data.scheduling ?? null, status: 'open', createdAt: new Date().toISOString() }); if (userId) auth.linkTournament(item.id, userId); return item; });
+      return transaction(() => { const item = insert({ id: randomUUID(), name: data.name.trim(), date: data.date, startsAt: new Date(data.startsAt).toISOString(), recruitEndAt: new Date(data.recruitEndAt).toISOString(), capacity: data.capacity, description: data.description.trim(), type: 'LoL · 5인 팀 · 싱글 엘리미네이션', kind: data.kind ?? 'standard', competitionType: data.competitionType ?? (data.kind === 'friendly' ? 'friendly' : null), participationScope: data.participationScope ?? null, earlyCloseMinTeams: data.earlyCloseMinTeams ?? null, finalFormat: data.finalFormat ?? 'Bo1', scheduling: data.scheduling ?? null, status: 'open', createdAt: new Date().toISOString() }); if (userId) auth.linkTournament(item.id, userId); rewards.enable(item.id, now()); return item; });
     },
     setScheduleRules(id, rules) {
       return transaction(() => {
@@ -86,8 +90,11 @@ export function openStore(filename, { now = () => Date.now() } = {}) {
     submitResult(id, matchId, data) {
       return transaction(() => {
         const item = find(id);
+        if (item.status === 'CANCELLED') fail('취소된 대회에는 결과를 제출할 수 없습니다.', 409);
+        const previousChampionId = item.bracket?.championTeamId;
         const bracket = applyResult(item, matchId, data);
         db.prepare('UPDATE brackets SET payload=? WHERE tournament_id=?').run(JSON.stringify(bracket), id);
+        rewards.award(item, matchId, previousChampionId);
         return bracket;
       });
     },

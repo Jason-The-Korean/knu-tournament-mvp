@@ -19,6 +19,7 @@ export function detailLayout(item,joinButton) {
  const root=el('div','','tournament-detail');root.dataset.tournamentId=item.id;
  const banner=el('header','','event-banner');banner.append(el('p','KNU ARENA · LEAGUE OF LEGENDS','event-kicker'),el('h2',item.name),el('p',`${typeLabel(item)} · ${scopeLabel(item)} · ${tournamentStage(item).label}`,'event-status'));
  const facts=el('dl','','event-facts');
+ if(item.rewardPolicy && item.status!=='CANCELLED') banner.append(el('p',`이 대회 우승팀 대표자에게 시연용 ${item.rewardPolicy.win_amount}P가 지급됩니다. 현금·기프티콘 교환은 지원하지 않습니다.`,'notice champion-reward-notice'));
  const values=[['개최자',item.permissions.legacyReadOnly?'기존 데모 · 개최자 미연결':'개최자 계정 연결됨 · 공개 이름 미제공'],['참가 현황',`${item.teams.length} / ${item.capacity}팀`],['모집 기간','별도 기간 미저장 · 현재 모집 상태 확인'],['모집 상태',item.status==='open'?'모집 열림 (정원·참가 조건 적용)':'모집 마감'],['경기 예정일',item.date || '미설정'],['경기 기간',item.scheduling?`${time(item.scheduling.startsAt)} ~ ${time(item.scheduling.endsAt)}`:'상세 기간 미설정'],['경기 방식',`LoL 5인 팀 · 싱글 엘리미네이션 · 일반 Bo1 / 결승 ${finalFormatLabel(item)}`]];
  if(item.recruitEndAt) values.splice(2,1,['모집 마감 일시',displayKst(item.recruitEndAt)]);
  if(item.startsAt) values.push(['대회 시작 시각',displayKst(item.startsAt)]);

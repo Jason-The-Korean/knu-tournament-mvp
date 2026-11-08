@@ -57,7 +57,7 @@ export function createServer({ dbPath = fileURLToPath(new URL('./data/tournament
           const owner = store.auth.owner(item.id); const userId = session?.user?.id;
           const manage = Boolean(owner && owner === userId);
           const teamIds = item.teams.filter(team => userId && store.auth.teamOwner(team.id) === userId).map(team => team.id);
-          return { ...item, permissions: { manage, teamIds, legacyReadOnly: !owner }, teams: item.teams.map(team => manage || teamIds.includes(team.id) ? team : { id: team.id, name: team.name, status: team.status }) };
+          return { ...item, rewardPolicy: store.rewardPolicy(item.id), permissions: { manage, teamIds, legacyReadOnly: !owner }, teams: item.teams.map(team => manage || teamIds.includes(team.id) ? team : { id: team.id, name: team.name, status: team.status }) };
         }));
         if (req.method !== 'POST') return json(405, { error: '지원하지 않는 요청입니다.' });
         const credentials = ['/api/auth/register', '/api/auth/login'].includes(path);
