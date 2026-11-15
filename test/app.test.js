@@ -5,9 +5,10 @@ import { STORAGE_KEY, validateTournament, readTournaments } from '../public/mode
 
 const valid = { name: '경북대 LoL 대회', date: '2026-11-14', startsAt: '2026-11-14T00:00:00Z', recruitEndAt: '2026-11-13T00:00:00Z', capacity: 8, description: '' };
 test('대회 입력 검증: 정상 입력, 빈 이름, 과거 날짜, 잘못된 팀 수', () => {
-  assert.equal(validateTournament(valid, '2026-11-07'), '');
+  const now = Date.parse('2026-11-07T00:00:00Z');
+  assert.equal(validateTournament(valid, '2026-11-07', false, now), '');
   for (const change of [{ name: '' }, { date: '2026-11-06' }, { capacity: 9 }]) {
-    assert.notEqual(validateTournament({ ...valid, ...change }, '2026-11-07'), '');
+    assert.notEqual(validateTournament({ ...valid, ...change }, '2026-11-07', false, now), '');
   }
 });
 test('브라우저 저장 형식 재읽기 및 손상 데이터 감지', () => {

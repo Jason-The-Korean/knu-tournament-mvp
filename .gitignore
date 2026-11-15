@@ -48,3 +48,4 @@ data/
 *.har
 trace.zip
 *.trace.zip
+/.knu-runtime/

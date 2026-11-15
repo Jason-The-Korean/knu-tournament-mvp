@@ -4,7 +4,7 @@ import { resultState, matchFormat, matchFormatLabel } from './model.js';
 import { rulesFields, readRules, tournamentScheduling, matchScheduling } from './schedule-ui.js';
 import { filterTournaments, tournamentStage, typeLabel, scopeLabel } from './arena.js';
 import { FAVORITES_KEY, loadFavorites, saveFavorites } from './favorites.js';
-import { detailLayout, restoreDetailTab, activateDetailTab } from './detail-ui.js';
+import { detailLayout, restoreDetailTab, activateDetailTab, recruitmentLabel } from './detail-ui.js';
 import { enhanceBracket, teamButton } from './bracket-ui.js';
 import { rulesPanel } from './rules-ui.js';
 import { resetPoints, showPoints } from './points-ui.js';
@@ -62,7 +62,7 @@ function openAuth(register = false) {
 function requestLogin(action, trigger = document.activeElement) {
   pendingAction = action; modalTrigger = trigger;
   $('required-message').textContent = action.type === 'join' ? '대회에 참가하려면 로그인이 필요합니다.' : '대회를 개최하려면 로그인이 필요합니다.';
-  $('required-next').textContent = action.type === 'join' ? '로그인 후 참가 신청 화면으로 계속 진행할 수 있습니다.' : '로그인 후 대회 생성 화면으로 계속 진행할 수 있습니다.';
+  $('required-next').textContent = action.type === 'join' ? '로그인 후 참가 신청 화면으로 계속 진행할 수 있습니다.' : '로그인 후 대회 만들기로 이동합니다.';
   $('login-required-dialog').returnValue = '';
   if (!$('login-required-dialog').open) $('login-required-dialog').showModal();
   $('required-login').focus();
@@ -126,7 +126,7 @@ for (const [id, register] of [['login-form', false], ['signup-form', true]]) $(i
     if (register) { const result = await api('/api/auth/register', { username, password, displayName: $('signup-name').value }); signupBonus = result.signupBonus; }
     const state = await api('/api/auth/login', { username, password }); currentUser = state.user; csrfToken = state.csrfToken; $(id).reset();
     const action = pendingAction; pendingAction = null; $('auth-dialog').close('success'); authDisplay(); await resumeAction(action);
-    if (signupBonus) announceSuccess(`회원가입이 완료되어 데모 보너스 ${signupBonus.amount}P가 지급되었습니다. 현금·기프티콘 교환은 지원하지 않습니다.`);
+    if (signupBonus) announceSuccess(`회원가입 완료 · 시연용 ${signupBonus.amount}P 지급 (현금·상품 교환 불가)`);
   } catch (error) { $('auth-error').textContent = error.message; }
   finally { $(register ? 'signup-password' : 'login-password').value = ''; authBusy = false; updateAuthButtons(); }
 });
@@ -136,16 +136,19 @@ function element(tag, text, className) {
   if (className) node.className = className;
   return node;
 }
+function updatePrimaryNav() {
+  const menu = location.hash === '#points' ? null : location.hash === '#create' ? 'create' : location.hash === '#guide' ? 'guide' : 'home';
+  document.querySelectorAll('[data-menu]').forEach(link => { if (link.dataset.menu === menu) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); });
+}
 function render() {
   const shown = filterTournaments(tournaments, filters, favorites);
   $('favorites-only').setAttribute('aria-pressed', String(filters.favorites));
   $('count').textContent = `${shown.length} / ${tournaments.length}개`;
   for (const key of ['status', 'type', 'scope']) document.querySelectorAll(`[data-${key}]`).forEach(button => button.setAttribute('aria-pressed', String(button.dataset[key] === filters[key])));
-  const menu = location.hash === '#guide' ? 'guide' : filters.type === 'all' ? 'home' : filters.type;
-  document.querySelectorAll('[data-menu]').forEach(link => { if (link.dataset.menu === menu) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current'); });
+  updatePrimaryNav();
   $('tournaments').replaceChildren();
   if (!shown.length) $('tournaments').append(element('div', tournaments.length ? '조건에 맞는 대회가 없습니다. 검색어와 필터를 조정해 보세요.' : '아직 등록된 대회가 없습니다. 첫 대회를 만들어 보세요.', 'empty'));
-  $('filter-description').textContent = '유형·참가 범위 미설정 대회는 특정 유형·범위 필터에서 제외됩니다.';
+  $('filter-description').textContent = filters.type !== 'all' || filters.scope !== 'all' ? '유형·참가 범위가 없는 대회는 이 조건에 표시되지 않습니다.' : '검색어와 조건으로 대회를 찾아보세요.';
   for (const item of [...shown].sort((a, b) => a.date.localeCompare(b.date))) {
     const card = element('article', '', 'card tournament-card'); card.dataset.tournamentId = item.id;
     const stage = tournamentStage(item), status = element('p', `${typeLabel(item)} · ${stage.label}`, 'card-status'); status.title = stage.reason;
@@ -153,7 +156,7 @@ function render() {
     link.append(element('h3', item.name), element('p', `${scopeLabel(item)} · LoL 5인 팀`, 'card-meta'));
     const footer = element('div', '', 'card-footer'); footer.append(element('span', `${item.teams.length} / ${item.capacity}팀`), element('span', `${item.date.slice(5, 7)}월 ${item.date.slice(8, 10)}일`, 'card-date'));
     card.append(status, link, footer);
-    card.append(element('p', item.recruitEndAt ? `모집 마감 ${displayKst(item.recruitEndAt)}` : '모집 마감 일시 미설정 · 기존 정책 적용', 'muted recruitment-deadline'));
+    card.append(element('p', item.recruitEndAt ? `모집 마감 ${displayKst(item.recruitEndAt)}` : '모집 마감 일시 미정', 'muted recruitment-deadline'));
     const bookmark = element('button', '', 'bookmark-button'); bookmark.type = 'button'; bookmark.dataset.favorite = item.id; bookmark.disabled = !favoritesReady;
     bookmark.setAttribute('aria-label', `${item.name} 관심 ${favorites.has(item.id) ? '해제' : '등록'}`); bookmark.setAttribute('aria-pressed', String(favorites.has(item.id)));
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '1.8'); svg.setAttribute('aria-hidden', 'true');
@@ -211,7 +214,7 @@ const liveRecruitment = recruitmentRefresh({
     const previous = tournaments[index]; tournaments[index] = item;
     const root = $('detail-content');
     const count = root.querySelector('[data-recruit-count]'); if (count) count.textContent = `${item.teams.length} / ${item.capacity}팀`;
-    const state = root.querySelector('[data-recruit-state]'); if (state) state.textContent = item.status === 'CANCELLED' ? '취소됨' : item.status !== 'open' || registrationReason(item) ? '모집 마감' : '모집 열림 (정원·참가 조건 적용)';
+    const state = root.querySelector('[data-recruit-state]'); if (state) state.textContent = recruitmentLabel(item);
     const status = root.querySelector('.event-status'); if (status) status.textContent = `${typeLabel(item)} · ${scopeLabel(item)} · ${tournamentStage(item).label}`;
     root.querySelector('[data-registration-reason]').textContent = registrationReason(item) || '모집 중 · 선착순 자동 승인';
     root.querySelector('[data-closing-policy]').textContent = closingPolicy(item);
@@ -221,7 +224,8 @@ const liveRecruitment = recruitmentRefresh({
     $('join-button').hidden = Boolean(registrationReason(item)) || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
     // Preserve values and DOM identity, including hidden or currently edited forms.
     $('team-form').hidden = Boolean(registrationReason(item)) || !currentUser || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
-    const summary = root.querySelector('[data-recruit-summary]'); if (summary) summary.textContent = `${scopeLabel(item)} · ${item.teams.length}/${item.capacity}팀 · ${item.bracket ? '대진표 생성 완료 · 재추첨 불가' : '대진표 미생성'}`;
+    const summary = root.querySelector('[data-recruit-summary]'); if (summary) summary.textContent = `${scopeLabel(item)} · ${item.teams.length}/${item.capacity}팀 · ${item.bracket ? '대진표 확정 · 재추첨 불가' : '대진표 준비 중'}`;
+    updateEmptyBracket(item);
     $('recruitment-refresh-status').textContent = item.status === 'open' && !item.bracket ? '참가 현황 자동 갱신 중 · 12초 간격' : '모집 상태가 변경되었습니다. 전체 내용을 보려면 최신 상태 새로고침을 눌러 주세요.';
   },
   onError: () => { if (selectedId() && $('recruitment-refresh-status')) $('recruitment-refresh-status').textContent = '참가 현황을 갱신하지 못했습니다. 기존 화면을 유지하며 자동으로 다시 시도합니다. 최신 상태 새로고침도 사용할 수 있습니다.'; },
@@ -230,8 +234,9 @@ document.addEventListener('visibilitychange', () => liveRecruitment.visibilityCh
 window.addEventListener('focus', () => { if (!document.hidden) void liveRecruitment.refresh(); });
 function renderParticipants(container, item) {
   container.replaceChildren();
-  if (!item.teams.length) container.append(element('p', '아직 참가팀이 없습니다.'));
-  for (const team of item.teams) { const card = element('article', '', 'card'); card.append(teamButton(item, team), element('p', '참가 승인 완료 · 팀을 선택하면 공개 가능한 상세 정보를 표시합니다.')); container.append(card); }
+  container.append(element('h3', '참가 팀·멤버'), element('p', '팀 이름을 눌러 팀원 정보를 확인하세요. 팀원 Riot ID와 대표자 정보는 개최자와 해당 팀 대표자에게만 공개됩니다.', 'muted'));
+  if (!item.teams.length) container.append(element('p', !registrationReason(item) && !item.permissions.legacyReadOnly ? '아직 참가팀이 없습니다. 참가하려면 위의 ‘참가 신청’를 눌러 주세요.' : '등록된 참가팀이 없습니다.'));
+  for (const team of item.teams) { const card = element('article', '', 'card'); card.append(teamButton(item, team), element('p', '참가 승인 완료')); container.append(card); }
 }
 function showDetail(item) {
   liveRecruitment.stop();
@@ -242,12 +247,13 @@ function showDetail(item) {
   const reason = registrationReason(item);
   const layout = detailLayout(item, $('join-button'));
   $('detail-content').append(layout.root);
-  if (item.permissions.legacyReadOnly) $('detail-content').append(element('p', '기존 데모 · 소유자와 대표자를 확인할 수 없어 읽기 전용으로 보존합니다. 새 대회를 생성해 사용해 주세요.', 'notice'));
+  if (item.permissions.legacyReadOnly) $('detail-content').append(element('p', '이 대회는 기록 확인만 가능합니다. 참가하려면 모집 중인 다른 대회를 찾아보세요.', 'notice'));
   const reasonNotice = element('p', reason || '모집 중 · 선착순 자동 승인', 'notice'); reasonNotice.dataset.registrationReason = ''; layout.home.append(reasonNotice);
   const teamList = element('div'); teamList.dataset.liveTeams = ''; renderParticipants(teamList, item); layout.participants.append(teamList);
   $('team-form').hidden = Boolean(reason) || !currentUser || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
   $('join-button').hidden = Boolean(reason) || item.permissions.legacyReadOnly || item.permissions.teamIds.length > 0;
-  const policy = element('p', closingPolicy(item), 'notice'); policy.dataset.closingPolicy = ''; layout.home.append(policy);
+  const policyDetails = element('details', '', 'recruit-policy'); policyDetails.append(element('summary', '모집 마감 조건'));
+  const policy = element('p', closingPolicy(item), 'notice'); policy.dataset.closingPolicy = ''; policyDetails.append(policy); layout.home.append(policyDetails);
   if (item.status !== 'CANCELLED') layout.bracket.append(tournamentScheduling(item));
   showBracket(item);
   layout.bracket.append($('detail-content').querySelector('.bracket-section'));
@@ -263,17 +269,31 @@ $('join-button').addEventListener('click', () => {
   if (!currentUser) requestLogin({ type: 'join', id: selectedId() }, $('join-button'));
   else { $('team-name').focus(); $('team-form').scrollIntoView({ block: 'start' }); }
 });
+function updateEmptyBracket(item) {
+  const section = $('detail-content').querySelector('.bracket-empty'); if (!section) return;
+  let title, text;
+  if (item.bracket) { title = '대진표가 준비됐습니다'; text = '최신 상태 새로고침을 눌러 대진표를 확인하세요.'; }
+  else if (item.permissions.legacyReadOnly) { title = '대진표가 없는 기록입니다'; text = '이 대회는 조회만 가능하며 새 대진표를 만들 수 없습니다.'; }
+  else if (item.status === 'closed') { title = '대진표 생성 대기'; text = item.permissions.manage ? '모집이 끝났습니다. 아래 버튼으로 대진표를 만들어 주세요.' : '모집이 끝났습니다. 개최자가 대진표를 만들면 여기에 표시됩니다.'; }
+  else if (canCancelUnderfilled(item)) { title = '최소 참가팀이 모이지 않았습니다'; text = item.permissions.manage ? '모집 기한이 지났습니다. 모집을 종료하면 대회가 취소됩니다.' : '참가팀이 2팀 미만입니다. 개최자의 대회 종료 결정을 기다려 주세요.'; }
+  else if (closeReason(item)) { title = '참가팀을 모집하고 있습니다'; text = item.permissions.manage ? '아래 모집 마감 조건을 충족하면 모집을 마감하고 대진표를 만들 수 있습니다.' : '모집이 끝나면 개최자가 대진표를 만듭니다. 참가 현황은 ‘참가 팀·멤버’에서 확인하세요.'; }
+  else { title = '참가팀이 모였습니다'; text = item.permissions.manage ? '아래에서 모집을 마감한 뒤 대진표를 만들어 주세요.' : '개최자가 모집을 마감하고 대진표를 만들면 여기에 표시됩니다.'; }
+  section.querySelector('[data-empty-title]').textContent = title;
+  section.querySelector('[data-empty-message]').textContent = text;
+}
 function showBracket(item) {
   const section = element('section', '', 'bracket-section');
   section.setAttribute('aria-label', '토너먼트 대진표');
-  section.append(element('h3', '싱글 엘리미네이션 대진표'));
+  section.append(element('h3', '대진표'));
   if (['Bo1', 'Bo3'].includes(item.finalFormat)) section.append(element('p', `결승 ${item.finalFormat}`));
   if (item.status === 'CANCELLED') {
     section.append(element('p', '취소된 대회입니다. 참가팀 기록은 보존되며 대진표를 생성할 수 없습니다.', 'notice'));
     $('detail-content').append(section); return;
   }
   if (!item.bracket) {
-    section.append(element('p', '모집을 마감한 뒤 무작위로 한 번 생성합니다. 재추첨과 팀 위치 변경은 불가능합니다.', 'muted'));
+    section.classList.add('bracket-empty');
+    const title = element('h4'); title.dataset.emptyTitle = ''; const message = element('p'); message.dataset.emptyMessage = ''; section.append(title, message);
+    section.append(element('p', '대진표는 한 번만 추첨하며, 만든 뒤에는 바꿀 수 없습니다.', 'muted'));
     const button = element('button', item.status === 'closed' ? '무작위 대진표 생성 (재추첨 불가)' : '참가 모집 마감');
     button.type = 'button'; button.dataset.action = item.status === 'closed' ? 'bracket' : 'close';
     const reason = item.status === 'closed'
@@ -300,7 +320,7 @@ function showBracket(item) {
           card.append(element('p', name));
         });
         const state = resultState(match);
-        const labels = { PENDING: 'PENDING · 결과 대기', AWAITING_CONFIRMATION: 'AWAITING_CONFIRMATION · 상대 확인 대기', DISPUTED: 'DISPUTED · 결과 불일치 — 자동 진출 중지', CONFIRMED: 'CONFIRMED · 양 팀 일치·결과 확정', BYE: '부전승 자동 진출 · 경기 승리 아님' };
+        const labels = { PENDING: '결과 대기', AWAITING_CONFIRMATION: '상대 팀 확인 대기', DISPUTED: '결과 불일치 · 양 팀의 수정이 필요합니다', CONFIRMED: '양 팀 확인 완료 · 결과 확정', BYE: '부전승 자동 진출 · 경기 승리 아님' };
         card.append(element('p', labels[state], `badge result-state ${state.toLowerCase()}`));
         if (state !== 'BYE') {
           card.append(element('p', matchFormatLabel(item, match), 'muted'));
@@ -321,6 +341,7 @@ function showBracket(item) {
     section.append(grid);
   }
   $('detail-content').append(section);
+  if (!item.bracket) updateEmptyBracket(item);
 }
 function resultForm(item, match, names) {
   const form = document.createElement('form'); form.className = 'result-form'; form.dataset.matchId = match.id;
@@ -403,9 +424,8 @@ async function route() {
   else if (location.hash === '#list' || !location.hash) filters.type = 'all';
   if (create && !currentUser) { history.replaceState(null, '', '#list'); requestLogin({ type: 'create' }, $('login-open')); return route(); }
   $('list-view').hidden = create || Boolean(id) || guide || points; $('create-view').hidden = !create; $('detail-view').hidden = !id; $('guide-view').hidden = !guide;
-  $('home-intro').hidden = create || Boolean(id) || guide || points; $('workspace-nav').hidden = !create && !id;
-  $('list-tab').setAttribute('aria-current', !create ? 'page' : 'false');
-  $('create-tab').setAttribute('aria-current', create ? 'page' : 'false'); $('date').min = kstDate(Date.now());
+  $('home-intro').hidden = create || Boolean(id) || guide || points;
+  updatePrimaryNav(); $('date').min = kstDate(Date.now());
   if (points) { await showPoints(currentUser, api); return; }
   $('team-error').textContent = ''; $('team-form').reset();
   if (id) { $('team-form').hidden = true; $('detail-view').append($('join-button'), $('team-form')); $('detail-content').replaceChildren(element('p', '불러오는 중…')); }
