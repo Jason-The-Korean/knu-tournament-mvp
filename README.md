@@ -1,5 +1,13 @@
 ﻿# KNU ARENA
 
+## FESTA Render 무료 시연 배포
+
+무료 배포 브랜치는 `deploy/festa-free`입니다. 새 Blueprint 생성 시 소스 브랜치도 `deploy/festa-free`로 선택하세요. 웹 서비스의 `branch: deploy/festa-free`, `plan: free`는 render.yaml에 명시되어 있습니다. 기존 유료 Blueprint는 수정하지 마세요. Blueprint 소스 브랜치는 대시보드에서 별도로 지정해야 하며 웹 서비스 배포 브랜치와 둘 다 확인해야 합니다.
+
+프론트엔드와 API는 하나의 Node.js 서비스로 실행됩니다. 영구 디스크 없이 쓰기 가능한 임시 경로 `/tmp/knu-arena-festa-free/tournament.sqlite`에서 새 SQLite DB를 생성합니다. 운영 DB나 개인정보는 복사하지 마세요. 외부 바인딩 0.0.0.0과 HTTPS용 Secure·HttpOnly·SameSite=Strict 세션 쿠키를 유지합니다.
+
+**서버가 절전 후 다시 시작되거나 재배포되면 계정과 대회 기록이 초기화될 수 있습니다.** 임시 파일이 단순 프로세스 재시작에서 남아 있어도 영구 보존을 보장하지 않습니다. 초기화 후에는 테스트 계정을 다시 회원가입하세요. 결제수단을 등록하지 말고 Free 플랜인지 확인하세요. 상세 절차는 [DEPLOYMENT.md](DEPLOYMENT.md)를 참고하세요.
+
 경북대학교 학생을 위한 스포츠·e스포츠 대회 플랫폼 MVP입니다. 2026년 11월 14일 해커톤 시연을 목표로 LoL 팀 신청, 대진표, 양 팀 결과 확인, 일정 합의와 최소 계정 인증을 구현했습니다.
 
 ## 실행

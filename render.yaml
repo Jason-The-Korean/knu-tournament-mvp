@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: knu-arena-festa
+    name: knu-arena-festa-free
     runtime: node
-    branch: deploy/festa-https
-    plan: starter
+    branch: deploy/festa-free
+    plan: free
     buildCommand: node --version
     startCommand: npm start
     healthCheckPath: /healthz
@@ -17,8 +17,4 @@ services:
       - key: SESSION_COOKIE_SECURE
         value: "1"
       - key: DB_PATH
-        value: /var/data/tournament.sqlite
-    disk:
-      name: knu-arena-data
-      mountPath: /var/data
-      sizeGB: 1
+        value: /tmp/knu-arena-festa-free/tournament.sqlite

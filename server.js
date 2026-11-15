@@ -141,7 +141,7 @@ export function createServer({ dbPath = process.env.DB_PATH || fileURLToPath(new
   return server;
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  if (process.env.NODE_ENV === 'production' && !process.env.DB_PATH?.startsWith('/')) throw new Error('Production requires an absolute DB_PATH on a persistent disk');
+  if (process.env.NODE_ENV === 'production' && !process.env.DB_PATH?.startsWith('/')) throw new Error('Production requires an absolute DB_PATH');
   const port = Number(process.env.PORT || 3000);
   const server = createServer();
   server.on('error', error => { console.error(`서버 실행 실패: ${error.message}`); process.exitCode = 1; });

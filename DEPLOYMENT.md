@@ -1,20 +1,20 @@
-# FESTA deployment
+# FESTA free deployment
 
-Source: festa-submission commit 335314b. Deployment branch: deploy/festa-https.
-Frontend and API run together with `npm start`; no build or dependencies required.
+Base: deploy/festa-https (47d6261), originally festa-submission (335314b).
+Deployment branch: deploy/festa-free. Frontend and API share one Node.js service.
 
-## Render setup (account owner)
+## Render setup
 
-1. Install/connect the Render integration, sign in, and authorize the existing GitHub repository. Keep the repository private if currently private.
-2. Create a Blueprint from this repository, selecting deploy/festa-https and render.yaml.
-3. Review and explicitly approve the paid Starter service and 1 GB persistent disk before creation. This file does not authorize payment.
-4. Confirm the disk is mounted at /var/data and DB_PATH=/var/data/tournament.sqlite. Do not upload existing databases, backups, browser sessions or demo records. A new empty DB initializes automatically.
-5. Render supplies RENDER_EXTERNAL_HOSTNAME. For a custom domain set ALLOWED_HOSTS to the exact hostname (comma-separated for multiple names; no scheme or wildcard).
+1. Create a separate Blueprint from the existing GitHub repository. Select deploy/festa-free as the Blueprint source branch and render.yaml as its path. Do not change the existing paid Blueprint.
+2. The service in render.yaml explicitly uses branch deploy/festa-free and plan free, with no disk. Confirm both the Blueprint source branch and the web service deployment branch show deploy/festa-free. The YAML service branch does not set the dashboard Blueprint source branch.
+3. Do not register a payment method or approve a paid resource. Keep repository visibility unchanged.
+4. DB_PATH=/tmp/knu-arena-festa-free/tournament.sqlite is writable ephemeral storage. A missing DB initializes empty. Never upload production databases, backups, browser sessions or private demo records.
+5. Render supplies RENDER_EXTERNAL_HOSTNAME for host validation. For custom domains set ALLOWED_HOSTS to exact comma-separated hostnames without schemes or wildcards.
 
-Production sets Secure, HttpOnly, SameSite=Strict session cookies even behind the HTTPS proxy. Forwarded headers cannot disable Secure. The service binds 0.0.0.0 and reads PORT. The health check is /healthz. Use a single instance with this SQLite disk.
+Production cookies use Secure, HttpOnly and SameSite=Strict behind HTTPS termination. The server binds 0.0.0.0, reads PORT, and exposes /healthz.
 
-## Required external acceptance check
+## Data lifetime and verification
 
-After Render reports a successful deploy, record the actual HTTPS URL and deployed full commit SHA. Open it from an external device/browser, confirm home and assets, register a synthetic test account with no personal data, log out and log in, and check /api/auth/session and Secure cookies. Restart the service and confirm that the account and its session/data remain available. Verify a cross-origin write is rejected. Do not submit a URL until these checks pass.
+Accounts and tournament records may reset after spin-down/restart or redeployment. Ephemeral files surviving a process restart do not imply durable storage. Register synthetic test accounts again after a reset.
 
-Local deployment tests exercise host allowlisting, HTTPS Origin handling, cookie flags, fresh DB initialization, signup/login, and session/user persistence after reopening the DB. These do not establish that a hosted disk is mounted or that external HTTPS works.
+Local tests cover home, host validation, signup/login, HTTPS Origin handling, cookie flags and DB reopening. After actual deployment, separately open the HTTPS URL from an external device, check home/assets, register and log in with a synthetic account, inspect cookies, and record the live commit. Local tests do not verify a live Render service. Dashboard branch settings require account access and must be checked during Blueprint creation.
