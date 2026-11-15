@@ -23,14 +23,16 @@ const assets = {
   '/schedule-model.js': ['schedule-model.js', 'text/javascript; charset=utf-8'],
   '/schedule-ui.js': ['schedule-ui.js', 'text/javascript; charset=utf-8'],
 };
-export function createServer({ dbPath = fileURLToPath(new URL('./data/tournament.sqlite', import.meta.url)), secureCookies = process.env.SESSION_COOKIE_SECURE === '1', now = () => Date.now() } = {}) {
+export function createServer({ dbPath = process.env.DB_PATH || fileURLToPath(new URL('./data/tournament.sqlite', import.meta.url)), secureCookies = process.env.NODE_ENV === 'production' || process.env.SESSION_COOKIE_SECURE === '1', allowedHosts = [process.env.RENDER_EXTERNAL_HOSTNAME, ...(process.env.ALLOWED_HOSTS || '').split(',')].filter(Boolean).map(host => host.trim().toLowerCase()), now = () => Date.now() } = {}) {
   const store = openStore(dbPath, { now });
   const server = http.createServer(async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
-    if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(req.headers.host ?? '')) { res.writeHead(403); return res.end('Invalid host'); }
+    const host = (req.headers.host ?? '').toLowerCase();
+    if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host) && !allowedHosts.includes(host)) { res.writeHead(403); return res.end('Invalid host'); }
     const path = new URL(req.url, 'http://localhost').pathname;
+    if (path === '/healthz' && ['GET', 'HEAD'].includes(req.method)) { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end(req.method === 'HEAD' ? undefined : 'ok'); }
     if ((path === '/api/rules' || path === '/assets/rules/common-draft-v0.2.pdf') && ['GET', 'HEAD'].includes(req.method)) {
       let pdf = null;
       try { const bytes = await readFile(new URL('./public/assets/rules/common-draft-v0.2.pdf', import.meta.url)); if (bytes.subarray(0, 5).toString() === '%PDF-') pdf = bytes; } catch { /* Missing documents have no live link. */ }
@@ -139,8 +141,11 @@ export function createServer({ dbPath = fileURLToPath(new URL('./data/tournament
   return server;
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  if (process.env.NODE_ENV === 'production' && !process.env.DB_PATH?.startsWith('/')) throw new Error('Production requires an absolute DB_PATH on a persistent disk');
   const port = Number(process.env.PORT || 3000);
   const server = createServer();
   server.on('error', error => { console.error(`서버 실행 실패: ${error.message}`); process.exitCode = 1; });
-  server.listen(port, '127.0.0.1', () => console.log(`KNU ARENA: http://127.0.0.1:${port}`));
+  const host = process.env.HOST || '0.0.0.0';
+  server.listen(port, host, () => console.log(`KNU ARENA: http://${host}:${port}`));
+  for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, () => server.close());
 }
